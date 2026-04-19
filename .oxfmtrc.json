@@ -1,0 +1,16 @@
+{
+  "$schema": "./node_modules/oxfmt/configuration_schema.json",
+  "printWidth": 140,
+  "semi": false,
+  "singleQuote": true,
+  "trailingComma": "none",
+  "bracketSpacing": true,
+  "bracketSameLine": false,
+  "arrowParens": "avoid",
+  "experimentalSortImports": {
+    "newlinesBetween": false,
+    "partitionByNewline": true
+  },
+  "experimentalSortPackageJson": true,
+  "ignorePatterns": ["dist", "build", "node_modules", "index.html", ".github", ".env", "**/*.md"]
+}
