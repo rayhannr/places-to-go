@@ -42,14 +42,14 @@ export function ChatInput({ onSendMessage, isLoading }: ChatInputProps) {
         autoFocus
         placeholder="Ask about your favorite places…"
         disabled={isLoading}
-        className="flex-1 glass border-white/8 text-sm placeholder:text-zinc-600 focus-visible:ring-blue-500/50 focus-visible:border-blue-500/40 rounded-xl h-12 px-4 transition-all"
+        className="flex-1 glass border-border text-foreground text-sm placeholder:text-muted-foreground focus-visible:ring-primary/50 focus-visible:border-primary/40 rounded-xl h-12 px-4 transition-all"
       />
       <Button
         id="chat-submit"
         type="submit"
         size="icon"
         disabled={isLoading || !draft.trim()}
-        className="h-12 w-12 rounded-xl bg-blue-600 hover:bg-blue-500 glow-primary disabled:opacity-40 disabled:grayscale shrink-0 active:scale-95 transition-all cursor-pointer"
+        className="h-12 w-12 rounded-xl bg-primary text-primary-foreground hover:opacity-90 glow-primary disabled:opacity-40 disabled:grayscale shrink-0 active:scale-95 transition-all cursor-pointer border-none"
       >
         {isLoading ? <Loader2 className="w-4.5 h-4.5 animate-spin" /> : <Send className="w-4.5 h-4.5" />}
       </Button>

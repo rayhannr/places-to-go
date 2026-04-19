@@ -60,7 +60,7 @@ export default function ChatPage() {
       {/* ── Input bar ── */}
       <ChatInput onSendMessage={handleSendMessage} isLoading={isLoading} />
 
-      <p className="text-[10px] text-center mt-3 text-zinc-700 uppercase tracking-[0.2em] shrink-0">
+      <p className="text-[10px] text-center mt-3 text-muted-foreground/40 uppercase tracking-[0.2em] shrink-0">
         Powered by Mistral AI
       </p>
     </main>

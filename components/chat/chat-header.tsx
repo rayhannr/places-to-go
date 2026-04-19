@@ -2,6 +2,7 @@
 
 import { ChefHat } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
+import { ThemeToggle } from '@/components/theme-toggle'
 
 export function ChatHeader() {
   return (
@@ -15,13 +16,16 @@ export function ChatHeader() {
           <p className="text-[11px] text-zinc-500 font-medium">Mistral AI · Food Tracker</p>
         </div>
       </div>
-      <Badge
-        variant="outline"
-        className="text-[10px] uppercase tracking-widest border-cyan-500/30 text-cyan-400 bg-cyan-500/5 px-2.5 py-1"
-      >
-        <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 mr-1.5 animate-blink inline-block" />
-        Live
-      </Badge>
+      <div className="flex items-center gap-2">
+        <ThemeToggle />
+        <Badge
+          variant="outline"
+          className="text-[10px] uppercase tracking-widest border-cyan-500/30 text-cyan-400 bg-cyan-500/5 px-2.5 py-1"
+        >
+          <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 mr-1.5 animate-blink inline-block" />
+          Live
+        </Badge>
+      </div>
     </header>
   )
 }

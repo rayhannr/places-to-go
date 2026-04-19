@@ -36,8 +36,8 @@ export function EmptyState({ onAction, disabled }: EmptyStateProps) {
       <div className="w-14 h-14 rounded-2xl glass flex items-center justify-center mb-4 glow-primary">
         <Sparkles className="w-7 h-7 text-blue-400" />
       </div>
-      <h2 className="text-lg font-semibold mb-1">How can I help?</h2>
-      <p className="text-sm text-zinc-500 max-w-xs mb-8">Ask me for food recommendations or add a new place to your tracker.</p>
+      <h2 className="text-lg font-semibold mb-1 text-foreground">How can I help?</h2>
+      <p className="text-sm text-muted-foreground max-w-xs mb-8">Ask me for food recommendations or add a new place to your tracker.</p>
 
       <div className="flex flex-col gap-2 w-full max-w-xs">
         {QUICK_ACTIONS.map(({ id, label, icon: Icon, color }) => (
@@ -46,10 +46,10 @@ export function EmptyState({ onAction, disabled }: EmptyStateProps) {
             variant="outline"
             onClick={() => onAction(label)}
             disabled={disabled}
-            className="justify-start gap-2.5 h-auto py-3 px-4 text-xs glass border-white/8 hover:border-blue-500/40 hover:bg-blue-500/5 transition-all cursor-pointer"
+            className="justify-start gap-2.5 h-auto py-3 px-4 text-xs glass border-border hover:border-primary/40 hover:bg-primary/5 transition-all cursor-pointer"
           >
             <Icon className={cn('w-4 h-4 shrink-0', color)} />
-            <span className="text-left text-zinc-300">{label}</span>
+            <span className="text-left text-foreground/80">{label}</span>
           </Button>
         ))}
       </div>

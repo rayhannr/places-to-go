@@ -1,7 +1,8 @@
 import type { Metadata } from 'next'
 import { Outfit } from 'next/font/google'
-import './globals.css'
+import { ThemeProvider } from '@/components/theme-provider'
 import { cn } from '@/lib/utils'
+import './globals.css'
 
 const outfit = Outfit({
   subsets: ['latin'],
@@ -20,8 +21,12 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" className={cn(outfit.variable, 'h-full')}>
-      <body className="min-h-full flex flex-col antialiased">{children}</body>
+    <html lang="en" className={cn(outfit.variable, 'h-full')} suppressHydrationWarning>
+      <body className="min-h-full flex flex-col antialiased">
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+          {children}
+        </ThemeProvider>
+      </body>
     </html>
   )
 }

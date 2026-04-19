@@ -6,6 +6,47 @@
 
 /* ─── Midnight & Neon Design Tokens ───────────────────────────────────────── */
 :root {
+  /* ──── Light Theme (Crystal & Indigo) ────────────────────────────────── */
+  --background: #ffffff;
+  --foreground: #09090b;
+  --card: #f8fafc;
+  --card-foreground: #09090b;
+  --popover: #ffffff;
+  --popover-foreground: #09090b;
+
+  /* Indigo primary */
+  --primary: #4f46e5;
+  --primary-foreground: #ffffff;
+
+  /* Sky secondary */
+  --secondary: #0ea5e9;
+  --secondary-foreground: #ffffff;
+
+  --muted: #f1f5f9;
+  --muted-foreground: #64748b;
+  --accent: #22d3ee;
+  --accent-foreground: #000000;
+  --destructive: #ef4444;
+
+  --border: rgba(0, 0, 0, 0.08);
+  --input: rgba(0, 0, 0, 0.04);
+  --ring: #4f46e5;
+
+  --radius: 0.875rem;
+
+  /* Custom tokens */
+  --neon-blue: #3b82f6;
+  --neon-violet: #8b5cf6;
+  --neon-cyan: #06b6d4;
+  --glass-bg: rgba(255, 255, 255, 0.7);
+  --glass-border: rgba(0, 0, 0, 0.08);
+  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.04);
+  --glow-blue: rgba(79, 70, 229, 0.2);
+  --glow-violet: rgba(139, 92, 246, 0.15);
+}
+
+.dark {
+  /* ──── Dark Theme (Midnight & Neon) ─────────────────────────────────── */
   --background: #0a0a0b;
   --foreground: #f4f4f5;
   --card: #111113;
@@ -22,16 +63,14 @@
   --secondary-foreground: #ffffff;
 
   --muted: #1c1c1f;
-  --muted-foreground: #71717a;
+  --muted-foreground: #a1a1aa;
   --accent: #22d3ee;
   --accent-foreground: #0a0a0b;
-  --destructive: oklch(0.704 0.191 22.216);
+  --destructive: #ef4444;
 
   --border: rgba(255, 255, 255, 0.08);
   --input: rgba(255, 255, 255, 0.06);
   --ring: #3b82f6;
-
-  --radius: 0.75rem;
 
   /* Custom tokens */
   --neon-blue: #3b82f6;
@@ -39,6 +78,7 @@
   --neon-cyan: #22d3ee;
   --glass-bg: rgba(255, 255, 255, 0.04);
   --glass-border: rgba(255, 255, 255, 0.09);
+  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
   --glow-blue: rgba(59, 130, 246, 0.35);
   --glow-violet: rgba(139, 92, 246, 0.25);
 }
@@ -110,7 +150,7 @@
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
     border: 1px solid var(--glass-border);
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+    box-shadow: var(--glass-shadow);
   }
 
   .glow-primary {

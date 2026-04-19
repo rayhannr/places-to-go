@@ -12,9 +12,9 @@ function ToolPartView({ part }: { part: ToolPart }) {
 
   if (part.state === 'input-streaming' || part.state === 'input-available') {
     return (
-      <div className="flex items-center gap-2.5 px-3 py-2 rounded-lg bg-black/30 border border-white/5 animate-fade-up">
-        <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-400 shrink-0" />
-        <span className="text-xs text-zinc-400">{isSearch ? 'Fetching your places…' : 'Adding place to tracker…'}</span>
+      <div className="flex items-center gap-2.5 px-3 py-2 rounded-lg bg-muted border border-border animate-fade-up">
+        <Loader2 className="w-3.5 h-3.5 animate-spin text-primary shrink-0" />
+        <span className="text-xs text-muted-foreground">{isSearch ? 'Fetching your places…' : 'Adding place to tracker…'}</span>
       </div>
     )
   }
@@ -23,9 +23,9 @@ function ToolPartView({ part }: { part: ToolPart }) {
     const count = (part.output as { length?: number } | undefined)?.length
     const name = (part.output as { entry?: { name?: string } } | undefined)?.entry?.name
     return (
-      <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 animate-fade-up">
-        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-        <span className="text-xs text-emerald-300">
+      <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/40 dark:border-emerald-500/20 animate-fade-up">
+        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+        <span className="text-xs text-emerald-700 dark:text-emerald-300">
           {isSearch ? `Found ${count ?? 0} place${count !== 1 ? 's' : ''}` : `Added "${name ?? 'place'}" successfully`}
         </span>
       </div>
@@ -45,16 +45,18 @@ export function MessageBubble({ message }: MessageBubbleProps) {
   return (
     <div className={cn('flex flex-col gap-1.5 animate-fade-up', isUser ? 'items-end' : 'items-start')}>
       {/* Role label */}
-      <div className={cn('flex items-center gap-1.5 opacity-40', isUser && 'flex-row-reverse')}>
-        {isUser ? <User size={11} /> : <Bot size={11} />}
-        <span className="text-[10px] uppercase font-semibold tracking-widest">{isUser ? 'You' : 'Assistant'}</span>
+      <div className={cn('flex items-center gap-1.5 opacity-50', isUser && 'flex-row-reverse')}>
+        {isUser ? <User size={11} className="text-primary" /> : <Bot size={11} className="text-secondary" />}
+        <span className="text-[10px] uppercase font-bold tracking-widest text-foreground">{isUser ? 'You' : 'Assistant'}</span>
       </div>
 
       {/* Bubble */}
       <div
         className={cn(
-          'max-w-[88%] px-4 py-3 rounded-2xl text-sm leading-relaxed',
-          isUser ? 'bg-blue-600/20 border border-blue-500/30 text-blue-50 rounded-tr-none' : 'glass text-zinc-100 rounded-tl-none'
+          'max-w-[88%] px-4 py-3 rounded-2xl text-sm leading-relaxed transition-colors duration-300',
+          isUser 
+            ? 'bg-primary text-primary-foreground shadow-sm rounded-tr-none' 
+            : 'glass text-foreground rounded-tl-none border-border'
         )}
       >
         <div className="flex flex-col gap-2">
