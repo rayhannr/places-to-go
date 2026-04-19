@@ -8,13 +8,13 @@ import { cn } from '@/lib/utils'
 
 function ToolPartView({ part }: { part: ToolPart }) {
   const toolName = part.type.replace('tool-', '')
-  const isRecommend = toolName === 'recommend_place'
+  const isSearch = toolName !== 'add_place'
 
   if (part.state === 'input-streaming' || part.state === 'input-available') {
     return (
       <div className="flex items-center gap-2.5 px-3 py-2 rounded-lg bg-black/30 border border-white/5 animate-fade-up">
         <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-400 shrink-0" />
-        <span className="text-xs text-zinc-400">{isRecommend ? 'Fetching your places…' : 'Adding place to tracker…'}</span>
+        <span className="text-xs text-zinc-400">{isSearch ? 'Fetching your places…' : 'Adding place to tracker…'}</span>
       </div>
     )
   }
@@ -26,7 +26,7 @@ function ToolPartView({ part }: { part: ToolPart }) {
       <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 animate-fade-up">
         <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
         <span className="text-xs text-emerald-300">
-          {isRecommend ? `Found ${count ?? 0} place${count !== 1 ? 's' : ''}` : `Added "${name ?? 'place'}" successfully`}
+          {isSearch ? `Found ${count ?? 0} place${count !== 1 ? 's' : ''}` : `Added "${name ?? 'place'}" successfully`}
         </span>
       </div>
     )

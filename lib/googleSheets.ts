@@ -10,6 +10,7 @@ export interface PlaceRow {
   // Support for lowercase keys if they exist in legacy code
   name?: string
   city?: string
+  link?: string
   distKm?: string | number
   travelMin?: string | number
 }
@@ -77,11 +78,7 @@ export async function getRows(spreadsheetId: string, tabName: string): Promise<P
 /**
  * Append a row to a spreadsheet tab.
  */
-export async function appendRow(
-  spreadsheetId: string,
-  tabName: string,
-  values: (string | number | null)[]
-): Promise<void> {
+export async function appendRow(spreadsheetId: string, tabName: string, values: (string | number | null)[]): Promise<void> {
   const sheets = await getSheetsClient()
   await sheets.spreadsheets.values.append({
     spreadsheetId,

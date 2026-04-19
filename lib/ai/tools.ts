@@ -1,15 +1,18 @@
-import { z } from 'zod'
-import { tool } from 'ai'
-import { getRows, appendRow, PlaceRow } from '../googleSheets'
-import levenshtein from 'fast-levenshtein'
 import https from 'https'
+import { Client, AddressType } from '@googlemaps/google-maps-services-js'
+import { tool } from 'ai'
 import axios from 'axios'
+import levenshtein from 'fast-levenshtein'
+import { z } from 'zod'
+import { getRows, appendRow, PlaceRow } from '../googleSheets'
 
 const SPREADSHEET_ID = process.env.SPREADSHEET_ID!
 const TAB_NAME = 'Food'
 const GMAPS_API_KEY = process.env.GMAPS_API_KEY!
 const REFERENCE_LAT = parseFloat(process.env.REFERENCE_LAT!)
 const REFERENCE_LNG = parseFloat(process.env.REFERENCE_LNG!)
+
+const gmapsClient = new Client({})
 
 // --- Types ---
 
@@ -60,7 +63,7 @@ function extractPlaceName(url: string | null): string | null {
 
 async function coordsFromPlaceName(placeName: string): Promise<Coords | null> {
   try {
-    const resp = await axios.get('https://maps.googleapis.com/maps/api/geocode/json', {
+    const resp = await gmapsClient.geocode({
       params: { address: placeName, key: GMAPS_API_KEY },
       timeout: 10000
     })
@@ -68,6 +71,24 @@ async function coordsFromPlaceName(placeName: string): Promise<Coords | null> {
     if (result) {
       const { lat, lng } = result.geometry.location
       return { lat, lng }
+    }
+  } catch (err) {}
+  return null
+}
+
+async function cityFromCoords(coords: Coords): Promise<string | null> {
+  try {
+    const resp = await gmapsClient.reverseGeocode({
+      params: { latlng: coords, key: GMAPS_API_KEY },
+      timeout: 10000
+    })
+    const result = resp.data.results?.[0]
+    if (result && result.address_components) {
+      // Look for locality (City) or administrative_area_level_2 (Regency/District)
+      const isCity = (c: { types: string[] }) =>
+        c.types.includes(AddressType.locality) || c.types.includes(AddressType.administrative_area_level_2)
+      const cityComp = result.address_components.find(isCity)
+      if (cityComp) return cityComp.long_name
     }
   } catch (err) {}
   return null
@@ -112,6 +133,7 @@ function compactPlace(r: PlaceRow) {
   return {
     name: r.Name || r.name,
     city: r.City || r.city,
+    link: r.Link || r.link,
     dist: r['Distance (km)'] || r.distKm,
     time: r['Travel Time (min)'] || r.travelMin,
     visited: r['Date Visited'] || null
@@ -127,7 +149,7 @@ function filterByStatus(rows: PlaceRow[], status: 'visited' | 'unvisited') {
 export const tools = {
   get_random_places: tool({
     description: 'Get a list of random places from the tracker. Great for "surprise me" moments.',
-    parameters: z.object({
+    inputSchema: z.object({
       count: z.number().optional().default(1).describe('Number of places to return (1-10)'),
       status: z.enum(['visited', 'unvisited']).optional().default('unvisited')
     }),
@@ -140,7 +162,7 @@ export const tools = {
   }),
   get_nearby_places: tool({
     description: 'Get the closest places based on distance.',
-    parameters: z.object({
+    inputSchema: z.object({
       count: z.number().optional().default(1).describe('Number of places to return (1-10)'),
       status: z.enum(['visited', 'unvisited']).optional().default('unvisited')
     }),
@@ -157,7 +179,7 @@ export const tools = {
   }),
   get_quickest_places: tool({
     description: 'Get places with the shortest travel time.',
-    parameters: z.object({
+    inputSchema: z.object({
       count: z.number().optional().default(1).describe('Number of places to return (1-10)'),
       status: z.enum(['visited', 'unvisited']).optional().default('unvisited')
     }),
@@ -174,12 +196,12 @@ export const tools = {
   }),
   get_places_by_city: tool({
     description: 'Get places filtered by a specific city.',
-    parameters: z.object({
+    inputSchema: z.object({
       city: z.string().describe('The name of the city to filter by'),
-      count: z.number().optional().default(3).describe('Number of places to return (1-10)'),
+      count: z.number().optional().default(1).describe('Number of places to return (1-10)'),
       status: z.enum(['visited', 'unvisited']).optional().default('unvisited')
     }),
-    execute: async ({ city, count = 3, status = 'unvisited' }: { city: string; count?: number; status?: 'visited' | 'unvisited' }) => {
+    execute: async ({ city, count = 1, status = 'unvisited' }: { city: string; count?: number; status?: 'visited' | 'unvisited' }) => {
       const allRows = await getRows(SPREADSHEET_ID, TAB_NAME)
       const filtered = filterByStatus(allRows, status).filter(r => {
         const rowCity = (r.City || r.city || '').toLowerCase()
@@ -190,7 +212,7 @@ export const tools = {
   }),
   search_places_by_name: tool({
     description: 'Search for a place by its name using fuzzy matching.',
-    parameters: z.object({
+    inputSchema: z.object({
       query: z.string().describe('The name of the place to search for'),
       count: z.number().optional().default(1).describe('Number of results to return (1-10)'),
       status: z.enum(['visited', 'unvisited', 'any']).optional().default('any')
@@ -213,22 +235,32 @@ export const tools = {
   }),
   add_place: tool({
     description:
-      'Adds a new place to the tracker using a name, city, and Google Maps link. It will automatically calculate distance and travel time.',
-    parameters: z.object({
-      name: z.string().describe('Name of the place'),
-      city: z.string().describe('City where the place is located'),
+      'Adds a new place to the tracker using a Google Maps link. You only need to provide the link. The name and city will be automatically derived from the link if not explicitly provided.',
+    inputSchema: z.object({
+      name: z.string().optional().describe('Name of the place (Optional, will be automatically extracted from link)'),
+      city: z.string().optional().describe('City where the place is located (Optional, will be derived via geocoding)'),
       link: z.string().describe('Google Maps URL (supports short links)')
     }),
-    execute: async ({ name, city, link }: { name: string; city: string; link: string }) => {
+    execute: async ({ name, city, link }: { name?: string; city?: string; link: string }) => {
       const fullUrl = await resolveShortLink(link)
       let c = extractCoords(fullUrl)
 
+      let finalName = name || extractPlaceName(fullUrl)
+
       if (!c) {
-        const placeName = extractPlaceName(fullUrl)
-        if (placeName) {
-          c = await coordsFromPlaceName(placeName)
+        if (finalName) {
+          c = await coordsFromPlaceName(finalName)
         }
       }
+
+      let finalCity = city
+      if (!finalCity && c) {
+        finalCity = (await cityFromCoords(c)) || 'Unknown City'
+      } else if (!finalCity) {
+        finalCity = 'Unknown City'
+      }
+
+      finalName = finalName || 'Unknown Place'
 
       let distKm: number | null = null
       let travelMin: number | null = null
@@ -244,10 +276,10 @@ export const tools = {
         }
       }
 
-      const row = [name, city, link, distKm!, travelMin!, '']
+      const row = [finalName, finalCity, link, distKm!, travelMin!, '']
       await appendRow(SPREADSHEET_ID, TAB_NAME, row)
 
-      return { success: true, entry: { name, city, distKm, travelMin } }
+      return { success: true, entry: { name: finalName, city: finalCity, distKm, travelMin } }
     }
   })
 }
