@@ -4,25 +4,50 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* ─── Midnight & Neon Design Tokens ───────────────────────────────────────── */
+:root {
+  --background: #0a0a0b;
+  --foreground: #f4f4f5;
+  --card: #111113;
+  --card-foreground: #f4f4f5;
+  --popover: #111113;
+  --popover-foreground: #f4f4f5;
+
+  /* Neon Blue primary */
+  --primary: #3b82f6;
+  --primary-foreground: #ffffff;
+
+  /* Violet secondary */
+  --secondary: #8b5cf6;
+  --secondary-foreground: #ffffff;
+
+  --muted: #1c1c1f;
+  --muted-foreground: #71717a;
+  --accent: #22d3ee;
+  --accent-foreground: #0a0a0b;
+  --destructive: oklch(0.704 0.191 22.216);
+
+  --border: rgba(255, 255, 255, 0.08);
+  --input: rgba(255, 255, 255, 0.06);
+  --ring: #3b82f6;
+
+  --radius: 0.75rem;
+
+  /* Custom tokens */
+  --neon-blue: #3b82f6;
+  --neon-violet: #8b5cf6;
+  --neon-cyan: #22d3ee;
+  --glass-bg: rgba(255, 255, 255, 0.04);
+  --glass-border: rgba(255, 255, 255, 0.09);
+  --glow-blue: rgba(59, 130, 246, 0.35);
+  --glow-violet: rgba(139, 92, 246, 0.25);
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-sans);
+  --font-sans: var(--font-outfit);
   --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-sans);
-  --color-sidebar-ring: var(--sidebar-ring);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar: var(--sidebar);
-  --color-chart-5: var(--chart-5);
-  --color-chart-4: var(--chart-4);
-  --color-chart-3: var(--chart-3);
-  --color-chart-2: var(--chart-2);
-  --color-chart-1: var(--chart-1);
   --color-ring: var(--ring);
   --color-input: var(--input);
   --color-border: var(--border);
@@ -35,8 +60,6 @@
   --color-secondary: var(--secondary);
   --color-primary-foreground: var(--primary-foreground);
   --color-primary: var(--primary);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
   --radius-sm: calc(var(--radius) * 0.6);
@@ -44,87 +67,122 @@
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) * 1.4);
   --radius-2xl: calc(var(--radius) * 1.8);
-  --radius-3xl: calc(var(--radius) * 2.2);
-  --radius-4xl: calc(var(--radius) * 2.6);
+
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.2; }
+  }
+  @keyframes fade-up {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes pulse-glow {
+    0%   { box-shadow: 0 0 6px var(--glow-blue); }
+    50%  { box-shadow: 0 0 22px var(--glow-blue), 0 0 40px var(--glow-violet); }
+    100% { box-shadow: 0 0 6px var(--glow-blue); }
+  }
+  @keyframes shimmer {
+    from { background-position: -200% center; }
+    to   { background-position:  200% center; }
+  }
 }
 
-:root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
-}
-
-.dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
-}
-
+/* ─── Base ────────────────────────────────────────────────────────────────── */
 @layer base {
-  * {
-    @apply border-border outline-ring/50;
+  *, *::before, *::after {
+    @apply box-border;
+  }
+  html, body {
+    @apply h-full overflow-x-hidden;
+    background-color: var(--background);
+    color: var(--foreground);
   }
   body {
-    @apply bg-background text-foreground;
-  }
-  html {
-    @apply font-sans;
+    @apply flex flex-col;
+    font-family: var(--font-sans, 'Outfit', sans-serif);
   }
 }
+
+/* ─── Components ──────────────────────────────────────────────────────────── */
+@layer components {
+  .glass {
+    background: var(--glass-bg);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid var(--glass-border);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+  }
+
+  .glow-primary {
+    animation: pulse-glow 3s infinite ease-in-out;
+  }
+
+  .animate-fade-up {
+    animation: fade-up 0.3s ease-out forwards;
+  }
+
+  .animate-blink {
+    animation: blink 1.2s ease-in-out infinite;
+  }
+
+  .text-shimmer {
+    background: linear-gradient(
+      90deg,
+      var(--muted-foreground) 0%,
+      var(--foreground) 40%,
+      var(--neon-cyan) 60%,
+      var(--muted-foreground) 100%
+    );
+    background-size: 200% auto;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: shimmer 3s linear infinite;
+  }
+
+  /* ─── Markdown Content Styling ─── */
+  .markdown {
+    word-break: break-word;
+  }
+  .markdown p:not(:last-child) {
+    margin-bottom: 0.75rem;
+  }
+  .markdown ul, .markdown ol {
+    margin-top: 0.75rem;
+    margin-bottom: 0.75rem;
+    padding-left: 1.25rem;
+  }
+  .markdown ul { list-style-type: disc; }
+  .markdown ol { list-style-type: decimal; }
+  .markdown li { margin-bottom: 0.25rem; }
+  .markdown strong {
+    font-weight: 700;
+    color: var(--neon-blue);
+  }
+  .markdown a {
+    color: var(--neon-cyan);
+    text-decoration: underline;
+    text-decoration-color: rgba(34, 211, 238, 0.3);
+    transition: all 0.2s ease;
+  }
+  .markdown a:hover {
+    text-decoration-color: var(--neon-cyan);
+    opacity: 0.9;
+  }
+  .markdown code {
+    background: rgba(255, 255, 255, 0.1);
+    padding: 0.1rem 0.3rem;
+    border-radius: 0.25rem;
+    font-size: 0.85em;
+    font-family: var(--font-mono);
+  }
+}
+
+/* ─── Scrollbar ───────────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: var(--glass-border);
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover { background: var(--neon-blue); }
