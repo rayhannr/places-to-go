@@ -3,8 +3,8 @@
 import { Bot, User, Loader2, CheckCircle2 } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { cn } from '@/lib/utils'
 import { Message, ToolPart } from '@/lib/types'
+import { cn } from '@/lib/utils'
 
 function ToolPartView({ part }: { part: ToolPart }) {
   const toolName = part.type.replace('tool-', '')

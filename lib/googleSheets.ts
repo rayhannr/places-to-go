@@ -1,0 +1,98 @@
+import { google, sheets_v4 } from 'googleapis'
+
+export interface PlaceRow {
+  Name: string
+  City: string
+  Link: string
+  'Distance (km)': string | number | null
+  'Travel Time (min)': string | number | null
+  'Date Visited': string | null
+  // Support for lowercase keys if they exist in legacy code
+  name?: string
+  city?: string
+  distKm?: string | number
+  travelMin?: string | number
+}
+
+interface CacheEntry {
+  rows: PlaceRow[]
+  expiresAt: number
+}
+
+// ─── In-memory cache ─────────────────────────────────────────────────────────
+const TTL_MS = 5 * 60 * 1000 // 5 minutes
+const cache = new Map<string, CacheEntry>()
+
+/**
+ * Get an authenticated Google Sheets client.
+ */
+async function getSheetsClient(): Promise<sheets_v4.Sheets> {
+  if (!process.env.GOOGLE_SERVICE_ACCOUNT_JSON) {
+    throw new Error('Missing GOOGLE_SERVICE_ACCOUNT_JSON environment variable.')
+  }
+
+  const credentials = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON)
+  const auth = new google.auth.GoogleAuth({
+    credentials,
+    scopes: ['https://www.googleapis.com/auth/spreadsheets']
+  })
+
+  const client = await auth.getClient()
+  return google.sheets({ version: 'v4', auth: client as any })
+}
+
+/**
+ * Fetch rows from a spreadsheet tab.
+ */
+export async function getRows(spreadsheetId: string, tabName: string): Promise<PlaceRow[]> {
+  const key = `${spreadsheetId}::${tabName}`
+  const cached = cache.get(key)
+
+  if (cached && Date.now() < cached.expiresAt) {
+    return cached.rows
+  }
+
+  const sheets = await getSheetsClient()
+  const response = await sheets.spreadsheets.values.get({
+    spreadsheetId,
+    range: `${tabName}!A:Z`
+  })
+
+  const rows = response.data.values
+  if (!rows || rows.length === 0) return []
+
+  const headers = rows[0] as string[]
+  const parsed: PlaceRow[] = rows.slice(1).map(row => {
+    const obj: any = {}
+    headers.forEach((header, index) => {
+      obj[header] = row[index] || null
+    })
+    return obj as PlaceRow
+  })
+
+  cache.set(key, { rows: parsed, expiresAt: Date.now() + TTL_MS })
+  return parsed
+}
+
+/**
+ * Append a row to a spreadsheet tab.
+ */
+export async function appendRow(
+  spreadsheetId: string,
+  tabName: string,
+  values: (string | number | null)[]
+): Promise<void> {
+  const sheets = await getSheetsClient()
+  await sheets.spreadsheets.values.append({
+    spreadsheetId,
+    range: `${tabName}!A1`,
+    valueInputOption: 'USER_ENTERED',
+    requestBody: {
+      values: [values]
+    }
+  } as any)
+
+  // Invalidate cache
+  const key = `${spreadsheetId}::${tabName}`
+  cache.delete(key)
+}
