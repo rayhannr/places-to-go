@@ -4,7 +4,7 @@ import { tool } from 'ai'
 import axios from 'axios'
 import levenshtein from 'fast-levenshtein'
 import { z } from 'zod'
-import { getRows, appendRow, PlaceRow } from '../googleSheets'
+import { getRows, appendRow, PlaceRow, updateLiveDistances } from '../googleSheets'
 
 const SPREADSHEET_ID = process.env.SPREADSHEET_ID!
 const TAB_NAME = 'Food'
@@ -13,6 +13,21 @@ const REFERENCE_LAT = parseFloat(process.env.REFERENCE_LAT!)
 const REFERENCE_LNG = parseFloat(process.env.REFERENCE_LNG!)
 
 const gmapsClient = new Client({})
+
+/**
+ * Calculates the straight-line distance between two points in km.
+ * Used for the "3km rule" check to avoid unnecessary API calls.
+ */
+function haversineDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371 // Radius of the earth in km
+  const dLat = (lat2 - lat1) * (Math.PI / 180)
+  const dLon = (lon2 - lon1) * (Math.PI / 180)
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) * Math.sin(dLon / 2) * Math.sin(dLon / 2)
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+  return R * c
+}
 
 // --- Types ---
 
@@ -96,23 +111,40 @@ async function cityFromCoords(coords: Coords): Promise<string | null> {
 
 async function getDistancesBatch(origin: Coords, destinations: Coords[]): Promise<DistanceMatrixResult[]> {
   const url = 'https://routes.googleapis.com/distanceMatrix/v2:computeRouteMatrix'
-  const body = {
-    origins: [{ waypoint: { location: { latLng: { latitude: origin.lat, longitude: origin.lng } } } }],
-    destinations: destinations.map(({ lat, lng }) => ({
-      waypoint: { location: { latLng: { latitude: lat, longitude: lng } } }
-    })),
-    travelMode: 'DRIVE',
-    routingPreference: 'TRAFFIC_UNAWARE'
+  const CHUNK_SIZE = 600 // Google limit is 625 elements (origins * destinations)
+  let allResults: DistanceMatrixResult[] = []
+
+  for (let i = 0; i < destinations.length; i += CHUNK_SIZE) {
+    const chunk = destinations.slice(i, i + CHUNK_SIZE)
+    const body = {
+      origins: [{ waypoint: { location: { latLng: { latitude: origin.lat, longitude: origin.lng } } } }],
+      destinations: chunk.map(({ lat, lng }) => ({
+        waypoint: { location: { latLng: { latitude: lat, longitude: lng } } }
+      })),
+      travelMode: 'DRIVE',
+      routingPreference: 'TRAFFIC_UNAWARE'
+    }
+
+    const resp = await axios.post(url, body, {
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Goog-Api-Key': GMAPS_API_KEY,
+        'X-Goog-FieldMask': 'originIndex,destinationIndex,distanceMeters,duration,status'
+      },
+      timeout: 30000
+    })
+
+    if (Array.isArray(resp.data)) {
+      // Adjust destinationIndex for chunking
+      const adjusted = resp.data.map(r => ({
+        ...r,
+        destinationIndex: r.destinationIndex !== undefined ? r.destinationIndex + i : undefined
+      }))
+      allResults = allResults.concat(adjusted)
+    }
   }
-  const resp = await axios.post(url, body, {
-    headers: {
-      'Content-Type': 'application/json',
-      'X-Goog-Api-Key': GMAPS_API_KEY,
-      'X-Goog-FieldMask': 'originIndex,destinationIndex,distanceMeters,duration,status'
-    },
-    timeout: 30000
-  })
-  return Array.isArray(resp.data) ? resp.data : []
+
+  return allResults.sort((a, b) => (a.destinationIndex || 0) - (b.destinationIndex || 0))
 }
 
 function parseDurationSecs(duration: string | { seconds: string } | undefined): number | null {
@@ -129,15 +161,80 @@ function parseDurationSecs(duration: string | { seconds: string } | undefined): 
 
 // --- Helper Functions for Tool Outputs ---
 
-function compactPlace(r: PlaceRow) {
+function compactPlace(r: PlaceRow, useLive = false) {
+  const dist = useLive
+    ? r['Distance (from current location)'] || r['Distance (km)'] || r.distKm
+    : r['Distance (km)'] || r.distKm
+  const time = useLive
+    ? r['Travel Time (from current location)'] || r['Travel Time (min)'] || r.travelMin
+    : r['Travel Time (min)'] || r.travelMin
+
   return {
     name: r.Name || r.name,
     city: r.City || r.city,
     link: r.Link || r.link,
-    dist: r['Distance (km)'] || r.distKm,
-    time: r['Travel Time (min)'] || r.travelMin,
+    dist,
+    time,
     visited: r['Date Visited'] || null
   }
+}
+
+async function syncLiveDistancesIfNeeded(rows: PlaceRow[], userLocation: Coords | undefined): Promise<PlaceRow[]> {
+  if (!userLocation) return rows
+  if (rows.length === 0) return rows
+
+  const firstRow = rows[0]
+  const storedDist = firstRow['Distance (from current location)']
+  const firstCoords = extractCoords(firstRow.Link)
+
+  // 1. Check if "current location" columns are empty
+  const needsInitialization = storedDist === null || storedDist === undefined || storedDist === ''
+
+  let shouldUpdate = needsInitialization
+
+  if (!needsInitialization && firstCoords) {
+    // 2. The 3km Rule Check
+    // Calculate current real distance vs what's in the sheet for the first item
+    const currentRealDist = haversineDistance(userLocation.lat, userLocation.lng, firstCoords.lat, firstCoords.lng)
+    const diff = Math.abs(currentRealDist - parseFloat(storedDist.toString()))
+    
+    if (diff > 2) {
+      shouldUpdate = true
+    }
+  }
+
+  if (shouldUpdate) {
+    console.log('Recalculating distances for all rows...')
+    const destinationCoords = rows.map(r => extractCoords(r.Link)).filter((c): c is Coords => !!c)
+    
+    // We need to keep track of which rows actually had coords
+    const rowsWithCoords = rows.filter(r => !!extractCoords(r.Link))
+    
+    const results = await getDistancesBatch(userLocation, destinationCoords)
+    
+    const updateValues: (string | number | null)[][] = rows.map(() => [null, null])
+
+    results.forEach(res => {
+      if (res.destinationIndex !== undefined && (!res.status || res.status.code === 0)) {
+        const distKm = res.distanceMeters ? +(res.distanceMeters / 1000).toFixed(2) : null
+        const secs = parseDurationSecs(res.duration)
+        const travelMin = secs ? +(secs / 60).toFixed(1) : null
+        
+        const rowIndex = rows.indexOf(rowsWithCoords[res.destinationIndex])
+        if (rowIndex !== -1) {
+          updateValues[rowIndex] = [distKm, travelMin]
+          // Update the in-memory rows for immediate return
+          rows[rowIndex]['Distance (from current location)'] = distKm
+          rows[rowIndex]['Travel Time (from current location)'] = travelMin
+        }
+      }
+    })
+
+    // Batch update the sheet (Columns G and H)
+    await updateLiveDistances(SPREADSHEET_ID, TAB_NAME, updateValues)
+  }
+
+  return rows
 }
 
 function filterByStatus(rows: PlaceRow[], status: 'visited' | 'unvisited') {
@@ -151,47 +248,59 @@ export const tools = {
     description: 'Get a list of random places from the tracker. Great for "surprise me" moments.',
     inputSchema: z.object({
       count: z.number().optional().default(1).describe('Number of places to return (1-10)'),
-      status: z.enum(['visited', 'unvisited']).optional().default('unvisited')
+      status: z.enum(['visited', 'unvisited']).optional().default('unvisited'),
+      userLocation: z.object({ lat: z.number(), lng: z.number() }).optional().describe('User current location for live distance')
     }),
-    execute: async ({ count = 1, status = 'unvisited' }: { count?: number; status?: 'visited' | 'unvisited' }) => {
-      const allRows = await getRows(SPREADSHEET_ID, TAB_NAME)
+    execute: async ({ count = 1, status = 'unvisited', userLocation }: { count?: number; status?: 'visited' | 'unvisited'; userLocation?: Coords }) => {
+      let allRows = await getRows(SPREADSHEET_ID, TAB_NAME)
+      if (userLocation) {
+        allRows = await syncLiveDistancesIfNeeded(allRows, userLocation)
+      }
       const filtered = filterByStatus(allRows, status)
       const shuffled = [...filtered].sort(() => 0.5 - Math.random())
-      return shuffled.slice(0, Math.min(count, 10)).map(compactPlace)
+      return shuffled.slice(0, Math.min(count, 10)).map(r => compactPlace(r, !!userLocation))
     }
   }),
   get_nearby_places: tool({
     description: 'Get the closest places based on distance.',
     inputSchema: z.object({
       count: z.number().optional().default(1).describe('Number of places to return (1-10)'),
-      status: z.enum(['visited', 'unvisited']).optional().default('unvisited')
+      status: z.enum(['visited', 'unvisited']).optional().default('unvisited'),
+      userLocation: z.object({ lat: z.number(), lng: z.number() }).optional().describe('User current location for live distance')
     }),
-    execute: async ({ count = 1, status = 'unvisited' }: { count?: number; status?: 'visited' | 'unvisited' }) => {
-      const allRows = await getRows(SPREADSHEET_ID, TAB_NAME)
+    execute: async ({ count = 1, status = 'unvisited', userLocation }: { count?: number; status?: 'visited' | 'unvisited'; userLocation?: Coords }) => {
+      let allRows = await getRows(SPREADSHEET_ID, TAB_NAME)
+      if (userLocation) {
+        allRows = await syncLiveDistancesIfNeeded(allRows, userLocation)
+      }
       const filtered = filterByStatus(allRows, status)
       const sorted = [...filtered].sort((a, b) => {
-        const distA = parseFloat((a['Distance (km)'] || a.distKm || Infinity).toString())
-        const distB = parseFloat((b['Distance (km)'] || b.distKm || Infinity).toString())
+        const distA = parseFloat((userLocation ? a['Distance (from current location)'] : (a['Distance (km)'] || a.distKm)) || Infinity as any)
+        const distB = parseFloat((userLocation ? b['Distance (from current location)'] : (b['Distance (km)'] || b.distKm)) || Infinity as any)
         return distA - distB
       })
-      return sorted.slice(0, Math.min(count, 10)).map(compactPlace)
+      return sorted.slice(0, Math.min(count, 10)).map(r => compactPlace(r, !!userLocation))
     }
   }),
   get_quickest_places: tool({
     description: 'Get places with the shortest travel time.',
     inputSchema: z.object({
       count: z.number().optional().default(1).describe('Number of places to return (1-10)'),
-      status: z.enum(['visited', 'unvisited']).optional().default('unvisited')
+      status: z.enum(['visited', 'unvisited']).optional().default('unvisited'),
+      userLocation: z.object({ lat: z.number(), lng: z.number() }).optional().describe('User current location for live distance')
     }),
-    execute: async ({ count = 1, status = 'unvisited' }: { count?: number; status?: 'visited' | 'unvisited' }) => {
-      const allRows = await getRows(SPREADSHEET_ID, TAB_NAME)
+    execute: async ({ count = 1, status = 'unvisited', userLocation }: { count?: number; status?: 'visited' | 'unvisited'; userLocation?: Coords }) => {
+      let allRows = await getRows(SPREADSHEET_ID, TAB_NAME)
+      if (userLocation) {
+        allRows = await syncLiveDistancesIfNeeded(allRows, userLocation)
+      }
       const filtered = filterByStatus(allRows, status)
       const sorted = [...filtered].sort((a, b) => {
-        const timeA = parseFloat((a['Travel Time (min)'] || a.travelMin || Infinity).toString())
-        const timeB = parseFloat((b['Travel Time (min)'] || b.travelMin || Infinity).toString())
+        const timeA = parseFloat((userLocation ? a['Distance (from current location)'] : (a['Travel Time (min)'] || a.travelMin)) || Infinity as any)
+        const timeB = parseFloat((userLocation ? b['Distance (from current location)'] : (b['Travel Time (min)'] || b.travelMin)) || Infinity as any)
         return timeA - timeB
       })
-      return sorted.slice(0, Math.min(count, 10)).map(compactPlace)
+      return sorted.slice(0, Math.min(count, 10)).map(r => compactPlace(r, !!userLocation))
     }
   }),
   get_places_by_city: tool({
@@ -199,15 +308,19 @@ export const tools = {
     inputSchema: z.object({
       city: z.string().describe('The name of the city to filter by'),
       count: z.number().optional().default(1).describe('Number of places to return (1-10)'),
-      status: z.enum(['visited', 'unvisited']).optional().default('unvisited')
+      status: z.enum(['visited', 'unvisited']).optional().default('unvisited'),
+      userLocation: z.object({ lat: z.number(), lng: z.number() }).optional().describe('User current location for live distance')
     }),
-    execute: async ({ city, count = 1, status = 'unvisited' }: { city: string; count?: number; status?: 'visited' | 'unvisited' }) => {
-      const allRows = await getRows(SPREADSHEET_ID, TAB_NAME)
+    execute: async ({ city, count = 1, status = 'unvisited', userLocation }: { city: string; count?: number; status?: 'visited' | 'unvisited'; userLocation?: Coords }) => {
+      let allRows = await getRows(SPREADSHEET_ID, TAB_NAME)
+      if (userLocation) {
+        allRows = await syncLiveDistancesIfNeeded(allRows, userLocation)
+      }
       const filtered = filterByStatus(allRows, status).filter(r => {
         const rowCity = (r.City || r.city || '').toLowerCase()
         return rowCity.includes(city.toLowerCase())
       })
-      return filtered.slice(0, Math.min(count, 10)).map(compactPlace)
+      return filtered.slice(0, Math.min(count, 10)).map(r => compactPlace(r, !!userLocation))
     }
   }),
   search_places_by_name: tool({
@@ -215,10 +328,14 @@ export const tools = {
     inputSchema: z.object({
       query: z.string().describe('The name of the place to search for'),
       count: z.number().optional().default(1).describe('Number of results to return (1-10)'),
-      status: z.enum(['visited', 'unvisited', 'any']).optional().default('any')
+      status: z.enum(['visited', 'unvisited', 'any']).optional().default('any'),
+      userLocation: z.object({ lat: z.number(), lng: z.number() }).optional().describe('User current location for live distance')
     }),
-    execute: async ({ query, count = 1, status = 'any' }: { query: string; count?: number; status?: 'visited' | 'unvisited' | 'any' }) => {
-      const allRows = await getRows(SPREADSHEET_ID, TAB_NAME)
+    execute: async ({ query, count = 1, status = 'any', userLocation }: { query: string; count?: number; status?: 'visited' | 'unvisited' | 'any'; userLocation?: Coords }) => {
+      let allRows = await getRows(SPREADSHEET_ID, TAB_NAME)
+      if (userLocation) {
+        allRows = await syncLiveDistancesIfNeeded(allRows, userLocation)
+      }
       const filtered = status === 'any' ? allRows : filterByStatus(allRows, status as any)
 
       const results = filtered
@@ -230,7 +347,7 @@ export const tools = {
         })
         .sort((a, b) => a.score - b.score)
 
-      return results.slice(0, Math.min(count, 10)).map(res => compactPlace(res.row))
+      return results.slice(0, Math.min(count, 10)).map(res => compactPlace(res.row, !!userLocation))
     }
   }),
   add_place: tool({
@@ -239,9 +356,10 @@ export const tools = {
     inputSchema: z.object({
       name: z.string().optional().describe('Name of the place (Optional, will be automatically extracted from link)'),
       city: z.string().optional().describe('City where the place is located (Optional, will be derived via geocoding)'),
-      link: z.string().describe('Google Maps URL (supports short links)')
+      link: z.string().describe('Google Maps URL (supports short links)'),
+      userLocation: z.object({ lat: z.number(), lng: z.number() }).optional().describe('User current location for live distance')
     }),
-    execute: async ({ name, city, link }: { name?: string; city?: string; link: string }) => {
+    execute: async ({ name, city, link, userLocation }: { name?: string; city?: string; link: string; userLocation?: Coords }) => {
       const fullUrl = await resolveShortLink(link)
       let c = extractCoords(fullUrl)
 
@@ -264,9 +382,9 @@ export const tools = {
 
       let distKm: number | null = null
       let travelMin: number | null = null
+      const origin = { lat: REFERENCE_LAT, lng: REFERENCE_LNG }
 
       if (c) {
-        const origin = { lat: REFERENCE_LAT, lng: REFERENCE_LNG }
         const apiResults = await getDistancesBatch(origin, [c])
         const res = apiResults[0]
         if (res && (!res.status || res.status.code === 0)) {
@@ -276,10 +394,23 @@ export const tools = {
         }
       }
 
-      const row = [finalName, finalCity, link, distKm!, travelMin!, '']
+      let liveDistKm: number | null = null
+      let liveTravelMin: number | null = null
+
+      if (c && userLocation) {
+        const apiResults = await getDistancesBatch(userLocation, [c])
+        const res = apiResults[0]
+        if (res && (!res.status || res.status.code === 0)) {
+          liveDistKm = res.distanceMeters ? +(res.distanceMeters / 1000).toFixed(2) : null
+          const secs = parseDurationSecs(res.duration)
+          liveTravelMin = secs ? +(secs / 60).toFixed(1) : null
+        }
+      }
+
+      const row = [finalName, finalCity, link, distKm!, travelMin!, '', liveDistKm, liveTravelMin]
       await appendRow(SPREADSHEET_ID, TAB_NAME, row)
 
-      return { success: true, entry: { name: finalName, city: finalCity, distKm, travelMin } }
+      return { success: true, entry: { name: finalName, city: finalCity, distKm, travelMin, liveDistKm, liveTravelMin } }
     }
   })
 }

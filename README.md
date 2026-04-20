@@ -18,6 +18,11 @@ An AI-powered personal food tracker that lives in your **browser** and your **Te
   - `Quickest`: Find spots with the shortest travel time.
   - `Surprise Me`: Random picks from your list.
 - **🌌 Midnight & Neon UI**: A sleek, high-contrast dark theme with glassmorphism.
+- **📍 Real-time Geolocation**: 
+  - Web: One-click "Go Live" location tracking.
+  - Telegram: Send your pin for persistent, cross-platform location sync.
+  - `Smart Recalculation`: Only updates your list when you move >2km.
+- **🔔 Sonner Notifications**: High-end toast notifications for real-time status updates.
 
 ## 🛠️ Tech Stack
 
@@ -25,7 +30,8 @@ An AI-powered personal food tracker that lives in your **browser** and your **Te
 - **AI**: Vercel AI SDK v6 + Mistral AI
 - **Bot**: grammY
 - **Database**: Google Sheets API
-- **Geo**: Google Routes API & Geocoding API
+- **Geo**: Google Routes API (Distance Matrix v2)
+- **UI Components**: Shadcn UI & Sonner
 - **Styling**: Tailwind CSS 4
 
 ## 🚀 Getting Started

@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { Outfit } from 'next/font/google'
 import { ThemeProvider } from '@/components/theme-provider'
 import { cn } from '@/lib/utils'
+import { Toaster } from '@/components/ui/sonner'
 import './globals.css'
 
 const outfit = Outfit({
@@ -25,6 +26,7 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col antialiased">
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
           {children}
+          <Toaster position="top-center" richColors />
         </ThemeProvider>
       </body>
     </html>

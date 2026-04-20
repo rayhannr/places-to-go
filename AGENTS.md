@@ -16,15 +16,20 @@
     - **Quickest**: Find spots with the shortest travel time.
     - **Random**: "Surprise me" discovery.
     - **City-based**: Filter by specific cities.
-- **Premium UI/UX**: 
     - "Midnight & Neon" aesthetic with glassmorphism in the web app.
     - Real-time tool execution status indicators.
+    - **Sonner Toast Notifications**: Sleek notifications for status updates.
+- **Live Location Sync**:
+    - Supports real-time GPS tracking from Web and Telegram.
+    - **The 2km Rule**: Only recalculates distances if the user moves >2km, saving API costs.
+    - **Persistent Sessions**: Stores user location in a dedicated `Session` tab on Google Sheets.
 
 ## 3. Tech Stack
 ### Frontend & Bot
 - **Web Framework**: [Next.js 15](https://nextjs.org/) (App Router)
 - **Bot Framework**: [grammY](https://grammy.dev/)
 - **Styling**: [Tailwind CSS 4](https://tailwindcss.com/)
+- **UI Components**: [Shadcn UI](https://ui.shadcn.com/) & [Sonner](https://sonner.emilkowal.ski/)
 - **State Management**: Vercel AI SDK (`useChat`)
 
 ### Backend & AI

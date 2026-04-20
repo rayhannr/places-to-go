@@ -7,12 +7,16 @@ export interface PlaceRow {
   'Distance (km)': string | number | null
   'Travel Time (min)': string | number | null
   'Date Visited': string | null
+  'Distance (from current location)': string | number | null
+  'Travel Time (from current location)': string | number | null
   // Support for lowercase keys if they exist in legacy code
   name?: string
   city?: string
   link?: string
   distKm?: string | number
   travelMin?: string | number
+  lat?: number
+  lng?: number
 }
 
 interface CacheEntry {
@@ -92,4 +96,97 @@ export async function appendRow(spreadsheetId: string, tabName: string, values: 
   // Invalidate cache
   const key = `${spreadsheetId}::${tabName}`
   cache.delete(key)
+}
+
+/**
+ * Batch update the "Live" location columns (G and H: Distance and Travel Time from current location).
+ */
+export async function updateLiveDistances(
+  spreadsheetId: string,
+  tabName: string,
+  values: (string | number | null)[][]
+): Promise<void> {
+  const sheets = await getSheetsClient()
+  
+  // Update G2:H{1+values.length}
+  const range = `${tabName}!G2:H${1 + values.length}`
+  
+  await sheets.spreadsheets.values.update({
+    spreadsheetId,
+    range,
+    valueInputOption: 'USER_ENTERED',
+    requestBody: {
+      values
+    }
+  } as any)
+
+  // Invalidate cache
+  const key = `${spreadsheetId}::${tabName}`
+  cache.delete(key)
+}
+
+/**
+ * Persist user location to a 'Session' tab.
+ */
+export async function setUserLocation(userId: string, coords: { lat: number; lng: number }): Promise<void> {
+  const sheets = await getSheetsClient()
+  const spreadsheetId = process.env.SPREADSHEET_ID!
+  const tabName = 'Session'
+
+  // Get current session data to find the right row
+  const response = await sheets.spreadsheets.values.get({
+    spreadsheetId,
+    range: `${tabName}!A:C`
+  })
+
+  const rows = (response.data.values || []) as any[][]
+  const userIdx = rows.findIndex(row => row[0] === userId)
+
+  if (userIdx !== -1) {
+    // Update existing row
+    await sheets.spreadsheets.values.update({
+      spreadsheetId,
+      range: `${tabName}!A${userIdx + 1}:C${userIdx + 1}`,
+      valueInputOption: 'USER_ENTERED',
+      requestBody: {
+        values: [[userId, coords.lat, coords.lng]]
+      }
+    } as any)
+  } else {
+    // Append new row
+    await sheets.spreadsheets.values.append({
+      spreadsheetId,
+      range: `${tabName}!A1`,
+      valueInputOption: 'USER_ENTERED',
+      requestBody: {
+        values: [[userId, coords.lat, coords.lng]]
+      }
+    } as any)
+  }
+}
+
+/**
+ * Retrieve user location from 'Session' tab.
+ */
+export async function getUserLocation(userId: string): Promise<{ lat: number; lng: number } | null> {
+  const sheets = await getSheetsClient()
+  const spreadsheetId = process.env.SPREADSHEET_ID!
+  const tabName = 'Session'
+
+  const response = await sheets.spreadsheets.values.get({
+    spreadsheetId,
+    range: `${tabName}!A:C`
+  }).catch(() => ({ data: { values: [] } }))
+
+  const rows = (response.data.values || []) as any[][]
+  const userRow = rows.find(row => row[0] === userId)
+
+  if (userRow) {
+    return {
+      lat: parseFloat(userRow[1]),
+      lng: parseFloat(userRow[2])
+    }
+  }
+
+  return null
 }
