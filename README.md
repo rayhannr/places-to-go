@@ -1,36 +1,72 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 📍 Places To Go
 
-## Getting Started
+An AI-powered personal food tracker that lives in your **browser** and your **Telegram**. Manage your favorite spots, get smart recommendations, and never forget a great meal again.
 
-First, run the development server:
+![Premium UI](https://img.shields.io/badge/Aesthetic-Midnight%20%26%20Neon-blueviolet)
+![Next.js](https://img.shields.io/badge/Next.js-15-black)
+![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue)
+![Mistral AI](https://img.shields.io/badge/AI-Mistral-orange)
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## ✨ Features
+
+- **🗣️ Tri-lingual AI**: Chat naturally in English, Indonesian, or Javanese.
+- **🤖 24/7 Telegram Bot**: Add places and get suggestions on the go.
+- **🗺️ Smart Links**: Just paste a Google Maps link, and the AI handles the rest (Name, City, Distance, Travel Time).
+- **🔋 Powered by Google Sheets**: Your data is yours. Easy to view, edit, and export manually.
+- **🎯 Smart Recomendations**:
+  - `Nearby`: Find spots closest to you.
+  - `Quickest`: Find spots with the shortest travel time.
+  - `Surprise Me`: Random picks from your list.
+- **🌌 Midnight & Neon UI**: A sleek, high-contrast dark theme with glassmorphism.
+
+## 🛠️ Tech Stack
+
+- **Framework**: Next.js 15 (App Router)
+- **AI**: Vercel AI SDK v6 + Mistral AI
+- **Bot**: grammY
+- **Database**: Google Sheets API
+- **Geo**: Google Routes API & Geocoding API
+- **Styling**: Tailwind CSS 4
+
+## 🚀 Getting Started
+
+### 1. Prerequisites
+- A Google Cloud Project with Sheets, Geocoding, and Routes APIs enabled.
+- A service account with access to your Google Sheet.
+- A Telegram Bot token from [@BotFather](https://t.me/BotFather).
+- Mistral AI API Key.
+
+### 2. Environment Variables
+Create a `.env` file based on the following:
+
+```env
+MISTRAL_API_KEY=your_key
+SPREADSHEET_ID=your_sheet_id
+GMAPS_API_KEY=your_key
+GOOGLE_APPLICATION_CREDENTIALS=path_to_json
+TELEGRAM_BOT_TOKEN=your_bot_token
+TELEGRAM_ALLOWED_USER_ID=your_id
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 3. Installation
+```bash
+npm install
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 4. Running Locally
+```bash
+npm run dev
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### 5. Telegram Webhook Setup
+To use the Telegram bot in production or with a tunnel:
+```bash
+npm run telegram:set-webhook
+```
 
-## Learn More
+## 📖 Related Documents
+- [AGENTS.md](./AGENTS.md): Detailed technical specification and architecture.
+- [CLAUDE.md](./CLAUDE.md): Development guidelines and command reference.
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 📝 License
+MIT

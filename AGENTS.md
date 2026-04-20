@@ -1,78 +1,95 @@
 # 📍 Places To Go - Specification Document
 
 ## 1. Overview
-**Places To Go** is an AI-powered personal tracker designed to manage and discover food destinations. It leverages a conversational interface to allow users to interact with their personal list of places, providing a seamless experience for adding new locations and receiving curated recommendations based on their existing data.
+**Places To Go** is an AI-powered personal tracker designed to manage and discover food destinations. It leverages a conversational interface across both **Web** and **Telegram**, providing a seamless experience for adding new locations and receiving curated recommendations based on their personal Google Sheets data.
 
 ## 2. Core Features
-- **AI Chat Assistant**: A natural language interface powered by Mistral AI for managing place data.
+- **AI Chat Assistant**: A natural language interface powered by Mistral AI, speaking English, Indonesian, and Javanese.
+- **24/7 Telegram Bot**: Access your tracker anytime via a Telegram bot, secured with user ID filtering.
 - **Smart Data Entry (`add_place`)**: 
     - Automatically resolves Google Maps short links.
     - Extracts coordinates and place names from URLs.
-    - Calculates distance (km) and travel time (minutes) from a fixed reference point using Google Maps Distance Matrix API.
+    - Calculates distance (km) and travel time (minutes) using Google Maps Routes API.
     - Saves data directly to a Google Sheet.
-- **Context-Aware Recommendations (`recommend_place`)**: Fetches existing entries from the tracker to provide suggestions.
+- **Smart Lenses (`recommend_place`)**: 
+    - **Nearby**: Find spots closest to your reference point.
+    - **Quickest**: Find spots with the shortest travel time.
+    - **Random**: "Surprise me" discovery.
+    - **City-based**: Filter by specific cities.
 - **Premium UI/UX**: 
-    - "Midnight & Neon" aesthetic with glassmorphism.
+    - "Midnight & Neon" aesthetic with glassmorphism in the web app.
     - Real-time tool execution status indicators.
-    - Mobile-optimized responsive design.
 
 ## 3. Tech Stack
-### Frontend
-- **Framework**: [Next.js 15](https://nextjs.org/) (App Router)
-- **Library**: [React 19](https://react.dev/)
+### Frontend & Bot
+- **Web Framework**: [Next.js 15](https://nextjs.org/) (App Router)
+- **Bot Framework**: [grammY](https://grammy.dev/)
 - **Styling**: [Tailwind CSS 4](https://tailwindcss.com/)
-- **Icons**: [Lucide React](https://lucide.dev/)
 - **State Management**: Vercel AI SDK (`useChat`)
 
 ### Backend & AI
-- **Runtime**: Next.js API Routes (Edge/Serverless)
+- **Runtime**: Next.js API Routes (Serverless/Edge)
 - **AI SDK**: [Vercel AI SDK v6](https://sdk.vercel.ai/docs)
 - **LLM Provider**: [Mistral AI](https://mistral.ai/) (`mistral-large-latest`)
-- **Validation**: [Zod](https://zod.dev/)
+- **Language Support**: English, Indonesian, Javanese
 
 ### Integration & Infrastructure
-- **Database**: [Google Sheets API](https://developers.google.com/sheets/api) (as a flexible, collaborative DB)
+- **Database**: [Google Sheets API](https://developers.google.com/sheets/api)
 - **Maps Services**: 
     - Google Maps Geocoding API
     - Google Routes API (Distance Matrix v2)
-- **Authentication**: `google-auth-library`
+- **Deployment**: Vercel
 
 ## 4. Architecture & Data Flow
 ```mermaid
 graph TD
-    User((User)) -->|Interacts| UI[Next.js Frontend]
-    UI -->|API Request| ChatRoute[app/api/chat/route.js]
+    User((User)) -->|Browser| UI[Next.js Frontend]
+    User -->|Telegram| TGBot[Telegram API]
+    
+    UI -->|API Request| ChatRoute[app/api/chat/route.ts]
+    TGBot -->|Webhook| TGBotRoute[app/api/telegram/route.ts]
+    
     ChatRoute -->|Stream| Mistral[Mistral AI]
-    Mistral -->|Tool Call| Tools[lib/ai/tools.js]
+    TGBotRoute -->|Stream| Mistral
+    
+    Mistral -->|Tool Call| Tools[lib/ai/tools.ts]
     
     subgraph Tools Logic
         Tools -->|Query/Append| Sheets[Google Sheets]
-        Tools -->|Geo Logic| Gmaps[Google Maps API]
+        Tools -->|Geo Logic| Gmaps[Google Routes API]
     end
     
     Tools -->|Result| Mistral
     Mistral -->|Final Response| UI
+    Mistral -->|Final Response| TGBot
 ```
 
 ## 5. Directory Structure
-- `app/`: Contains the main application pages and API routes.
-    - `page.js`: The chat interface and UI logic.
-    - `api/chat/route.js`: The AI orchestrator.
-- `lib/`: Core business logic and integrations.
-    - `ai/tools.js`: Vercel AI SDK tool definitions (`add_place`, `recommend_place`).
-    - `googleSheets.js`: Google Sheets API wrapper for reading and writing rows.
-- `scripts/`: Implementation scripts and legacy build helpers.
-- `skills/`: Modular logic for specific features (e.g., `add_place`).
+- `app/`:
+    - `api/`:
+        - `chat/route.ts`: Web chat API endpoint.
+        - `telegram/route.ts`: Telegram webhook endpoint.
+    - `page.tsx`: Web chat interface.
+- `lib/`:
+    - `ai/`:
+        - `config.ts`: AI model and system prompt settings.
+        - `tools.ts`: Vercel AI SDK tool definitions.
+    - `bot.ts`: Grammy bot instance and message handling logic.
+    - `googleSheets.ts`: Google Sheets API wrapper.
+- `scripts/`:
+    - `set-webhook.ts`: Helper script to configure Telegram webhook.
 
 ## 6. Configuration (Environment Variables)
-To run this application, the following environment variables are required:
 - `MISTRAL_API_KEY`: Authentication for Mistral AI.
-- `SPREADSHEET_ID`: The ID of the Google Sheet acting as the database.
-- `GMAPS_API_KEY`: API key with access to Geocoding and Routes APIs.
-- `GOOGLE_APPLICATION_CREDENTIALS`: Path to the service account JSON for Google Sheets access.
+- `SPREADSHEET_ID`: Google Sheet ID.
+- `GMAPS_API_KEY`: Google Cloud API Key.
+- `GOOGLE_APPLICATION_CREDENTIALS`: Path/Content of service account JSON.
+- `TELEGRAM_BOT_TOKEN`: Token from BotFather.
+- `TELEGRAM_ALLOWED_USER_ID`: Comma-separated list of IDs allowed to use the bot.
 
 ## 7. Future Roadmap
-- [ ] **Multi-Tab Support**: Support for different categories beyond "Food" (e.g., "Sightseeing", "Cafes").
+- [x] **Telegram Integration**: 24/7 access via chatbot.
+- [ ] **Multi-Tab Support**: Support for different categories beyond "Food".
 - [ ] **Interactive Maps**: Embed a map view to visualize all saved locations.
-- [ ] **Export Options**: Export the current list to CSV/Excel using the integrated `xlsx` library.
+- [ ] **Export Options**: Export the current list to CSV/Excel.
 - [ ] **User Authentication**: Support for personal Google Sheets per user.
