@@ -15,18 +15,24 @@ if (!token) {
 export const bot = new Bot(token)
 
 // Persistent store for user locations in Google Sheets
-bot.on('message:location', async ctx => {
+bot.on(['message:location', 'edited_message:location'], async ctx => {
   const userId = ctx.from?.id.toString()
   if (!userId) return
 
+  const location = ctx.message?.location || ctx.editedMessage?.location
+  if (!location) return
+
   const coords = {
-    lat: ctx.message.location.latitude,
-    lng: ctx.message.location.longitude
+    lat: location.latitude,
+    lng: location.longitude
   }
 
   await saveChatSession(userId, { lat: coords.lat, lng: coords.lng })
 
-  await ctx.reply('Sipp bro, lokasimu udah tak catet! Sekarang kalo tanya jarak dari posisimu, langsung tak hitungin ya.')
+  // Only reply for initial share, not every live update
+  if (ctx.message) {
+    await ctx.reply('Sipp bro, lokasimu udah tak catet! Sekarang kalo tanya jarak dari posisimu, langsung tak hitungin ya.')
+  }
 })
 
 bot.on('message:text', async ctx => {

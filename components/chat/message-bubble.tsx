@@ -8,31 +8,67 @@ import { cn } from '@/lib/utils'
 
 function ToolPartView({ part }: { part: ToolPart }) {
   const toolName = part.type.replace('tool-', '')
-  const isSearch = toolName !== 'add_place'
+
+  // Specific loading messages
+  const getStatusText = () => {
+    switch (toolName) {
+      case 'add_place': return 'Adding place to tracker…'
+      case 'get_current_location': return 'Locating you…'
+      default: return 'Fetching your places…'
+    }
+  }
 
   if (part.state === 'input-streaming' || part.state === 'input-available') {
     return (
       <div className="flex items-center gap-2.5 px-3 py-2 rounded-lg bg-muted border border-border animate-fade-up">
         <Loader2 className="w-3.5 h-3.5 animate-spin text-primary shrink-0" />
-        <span className="text-xs text-muted-foreground">{isSearch ? 'Fetching your places…' : 'Adding place to tracker…'}</span>
+        <span className="text-xs text-muted-foreground">{getStatusText()}</span>
       </div>
     )
   }
 
   if (part.state === 'output-available') {
-    const count = (part.output as { length?: number } | undefined)?.length
-    const name = (part.output as { entry?: { name?: string } } | undefined)?.entry?.name
+    const output = part.output
+    
+    // 1. Adding a place
+    if (toolName === 'add_place') {
+      const name = output?.entry?.name ?? 'place'
+      return (
+        <ToolResult icon={<CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />}>
+          Added "{name}" successfully
+        </ToolResult>
+      )
+    }
+
+    // 2. Getting current location
+    if (toolName === 'get_current_location') {
+      const address = output?.address || 'Unknown address'
+      return (
+        <ToolResult icon={<CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />}>
+          Located: {address}
+        </ToolResult>
+      )
+    }
+
+    // 3. Search/Retrieval tools (everything else)
+    const count = output?.length ?? 0
     return (
-      <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/40 dark:border-emerald-500/20 animate-fade-up">
-        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-        <span className="text-xs text-emerald-700 dark:text-emerald-300">
-          {isSearch ? `Found ${count ?? 0} place${count !== 1 ? 's' : ''}` : `Added "${name ?? 'place'}" successfully`}
-        </span>
-      </div>
+      <ToolResult icon={<CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />}>
+        Found {count} place{count !== 1 ? 's' : ''}
+      </ToolResult>
     )
   }
 
   return null
+}
+
+function ToolResult({ icon, children }: { icon: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/40 dark:border-emerald-500/20 animate-fade-up">
+      {icon}
+      <span className="text-xs text-emerald-700 dark:text-emerald-300">{children}</span>
+    </div>
+  )
 }
 
 interface MessageBubbleProps {

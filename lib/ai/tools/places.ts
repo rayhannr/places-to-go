@@ -96,10 +96,10 @@ export const get_quickest_places = tool({
     const filtered = filterByStatus(allRows, status)
     const sorted = [...filtered].sort((a, b) => {
       const timeA = parseFloat(
-        (userLocation ? a['Distance (from current location)'] : a['Travel Time (min)'] || a.travelMin) || (Infinity as any)
+        (userLocation ? a['Travel Time (from current location)'] : a['Travel Time (min)'] || a.travelMin) || (Infinity as any)
       )
       const timeB = parseFloat(
-        (userLocation ? b['Distance (from current location)'] : b['Travel Time (min)'] || b.travelMin) || (Infinity as any)
+        (userLocation ? b['Travel Time (from current location)'] : b['Travel Time (min)'] || b.travelMin) || (Infinity as any)
       )
       return timeA - timeB
     })
@@ -169,12 +169,14 @@ export const search_places_by_name = tool({
         const name = (r.Name || r.name || '').toLowerCase()
         const distance = levenshtein.get(name, query.toLowerCase())
         const isPartial = name.includes(query.toLowerCase())
+        // Partial matches get a huge boost (score 0), otherwise use Levenshtein distance
         return { row: r, score: isPartial ? 0 : distance }
       })
       .sort((a, b) => a.score - b.score)
 
-    const shuffled = [...results].sort(() => 0.5 - Math.random())
-    return shuffled.slice(0, Math.min(count, 10)).map(res => compactPlace(res.row, !!userLocation))
+    // Take the top 10 most relevant results, then shuffle THEM for variety (if more than count)
+    const topResults = results.slice(0, 10).sort(() => 0.5 - Math.random())
+    return topResults.slice(0, Math.min(count, 10)).map(res => compactPlace(res.row, !!userLocation))
   }
 })
 
