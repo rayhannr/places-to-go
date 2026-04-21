@@ -4,7 +4,7 @@ import { tool } from 'ai'
 import axios from 'axios'
 import levenshtein from 'fast-levenshtein'
 import { z } from 'zod'
-import { getRows, appendRow, PlaceRow, updateLiveDistances } from '../googleSheets'
+import { getRows, appendRow, PlaceRow, updateLiveDistances, setUserLocation } from '../googleSheets'
 
 const SPREADSHEET_ID = process.env.SPREADSHEET_ID!
 const TAB_NAME = 'Food'
@@ -162,9 +162,7 @@ function parseDurationSecs(duration: string | { seconds: string } | undefined): 
 // --- Helper Functions for Tool Outputs ---
 
 function compactPlace(r: PlaceRow, useLive = false) {
-  const dist = useLive
-    ? r['Distance (from current location)'] || r['Distance (km)'] || r.distKm
-    : r['Distance (km)'] || r.distKm
+  const dist = useLive ? r['Distance (from current location)'] || r['Distance (km)'] || r.distKm : r['Distance (km)'] || r.distKm
   const time = useLive
     ? r['Travel Time (from current location)'] || r['Travel Time (min)'] || r.travelMin
     : r['Travel Time (min)'] || r.travelMin
@@ -197,7 +195,7 @@ async function syncLiveDistancesIfNeeded(rows: PlaceRow[], userLocation: Coords 
     // Calculate current real distance vs what's in the sheet for the first item
     const currentRealDist = haversineDistance(userLocation.lat, userLocation.lng, firstCoords.lat, firstCoords.lng)
     const diff = Math.abs(currentRealDist - parseFloat(storedDist.toString()))
-    
+
     if (diff > 2) {
       shouldUpdate = true
     }
@@ -206,12 +204,12 @@ async function syncLiveDistancesIfNeeded(rows: PlaceRow[], userLocation: Coords 
   if (shouldUpdate) {
     console.log('Recalculating distances for all rows...')
     const destinationCoords = rows.map(r => extractCoords(r.Link)).filter((c): c is Coords => !!c)
-    
+
     // We need to keep track of which rows actually had coords
     const rowsWithCoords = rows.filter(r => !!extractCoords(r.Link))
-    
+
     const results = await getDistancesBatch(userLocation, destinationCoords)
-    
+
     const updateValues: (string | number | null)[][] = rows.map(() => [null, null])
 
     results.forEach(res => {
@@ -219,7 +217,7 @@ async function syncLiveDistancesIfNeeded(rows: PlaceRow[], userLocation: Coords 
         const distKm = res.distanceMeters ? +(res.distanceMeters / 1000).toFixed(2) : null
         const secs = parseDurationSecs(res.duration)
         const travelMin = secs ? +(secs / 60).toFixed(1) : null
-        
+
         const rowIndex = rows.indexOf(rowsWithCoords[res.destinationIndex])
         if (rowIndex !== -1) {
           updateValues[rowIndex] = [distKm, travelMin]
@@ -251,7 +249,15 @@ export const tools = {
       status: z.enum(['visited', 'unvisited']).optional().default('unvisited'),
       userLocation: z.object({ lat: z.number(), lng: z.number() }).optional().describe('User current location for live distance')
     }),
-    execute: async ({ count = 1, status = 'unvisited', userLocation }: { count?: number; status?: 'visited' | 'unvisited'; userLocation?: Coords }) => {
+    execute: async ({
+      count = 1,
+      status = 'unvisited',
+      userLocation
+    }: {
+      count?: number
+      status?: 'visited' | 'unvisited'
+      userLocation?: Coords
+    }) => {
       let allRows = await getRows(SPREADSHEET_ID, TAB_NAME)
       if (userLocation) {
         allRows = await syncLiveDistancesIfNeeded(allRows, userLocation)
@@ -268,15 +274,27 @@ export const tools = {
       status: z.enum(['visited', 'unvisited']).optional().default('unvisited'),
       userLocation: z.object({ lat: z.number(), lng: z.number() }).optional().describe('User current location for live distance')
     }),
-    execute: async ({ count = 1, status = 'unvisited', userLocation }: { count?: number; status?: 'visited' | 'unvisited'; userLocation?: Coords }) => {
+    execute: async ({
+      count = 1,
+      status = 'unvisited',
+      userLocation
+    }: {
+      count?: number
+      status?: 'visited' | 'unvisited'
+      userLocation?: Coords
+    }) => {
       let allRows = await getRows(SPREADSHEET_ID, TAB_NAME)
       if (userLocation) {
         allRows = await syncLiveDistancesIfNeeded(allRows, userLocation)
       }
       const filtered = filterByStatus(allRows, status)
       const sorted = [...filtered].sort((a, b) => {
-        const distA = parseFloat((userLocation ? a['Distance (from current location)'] : (a['Distance (km)'] || a.distKm)) || Infinity as any)
-        const distB = parseFloat((userLocation ? b['Distance (from current location)'] : (b['Distance (km)'] || b.distKm)) || Infinity as any)
+        const distA = parseFloat(
+          (userLocation ? a['Distance (from current location)'] : a['Distance (km)'] || a.distKm) || (Infinity as any)
+        )
+        const distB = parseFloat(
+          (userLocation ? b['Distance (from current location)'] : b['Distance (km)'] || b.distKm) || (Infinity as any)
+        )
         return distA - distB
       })
       return sorted.slice(0, Math.min(count, 10)).map(r => compactPlace(r, !!userLocation))
@@ -289,15 +307,27 @@ export const tools = {
       status: z.enum(['visited', 'unvisited']).optional().default('unvisited'),
       userLocation: z.object({ lat: z.number(), lng: z.number() }).optional().describe('User current location for live distance')
     }),
-    execute: async ({ count = 1, status = 'unvisited', userLocation }: { count?: number; status?: 'visited' | 'unvisited'; userLocation?: Coords }) => {
+    execute: async ({
+      count = 1,
+      status = 'unvisited',
+      userLocation
+    }: {
+      count?: number
+      status?: 'visited' | 'unvisited'
+      userLocation?: Coords
+    }) => {
       let allRows = await getRows(SPREADSHEET_ID, TAB_NAME)
       if (userLocation) {
         allRows = await syncLiveDistancesIfNeeded(allRows, userLocation)
       }
       const filtered = filterByStatus(allRows, status)
       const sorted = [...filtered].sort((a, b) => {
-        const timeA = parseFloat((userLocation ? a['Distance (from current location)'] : (a['Travel Time (min)'] || a.travelMin)) || Infinity as any)
-        const timeB = parseFloat((userLocation ? b['Distance (from current location)'] : (b['Travel Time (min)'] || b.travelMin)) || Infinity as any)
+        const timeA = parseFloat(
+          (userLocation ? a['Distance (from current location)'] : a['Travel Time (min)'] || a.travelMin) || (Infinity as any)
+        )
+        const timeB = parseFloat(
+          (userLocation ? b['Distance (from current location)'] : b['Travel Time (min)'] || b.travelMin) || (Infinity as any)
+        )
         return timeA - timeB
       })
       return sorted.slice(0, Math.min(count, 10)).map(r => compactPlace(r, !!userLocation))
@@ -311,7 +341,17 @@ export const tools = {
       status: z.enum(['visited', 'unvisited']).optional().default('unvisited'),
       userLocation: z.object({ lat: z.number(), lng: z.number() }).optional().describe('User current location for live distance')
     }),
-    execute: async ({ city, count = 1, status = 'unvisited', userLocation }: { city: string; count?: number; status?: 'visited' | 'unvisited'; userLocation?: Coords }) => {
+    execute: async ({
+      city,
+      count = 1,
+      status = 'unvisited',
+      userLocation
+    }: {
+      city: string
+      count?: number
+      status?: 'visited' | 'unvisited'
+      userLocation?: Coords
+    }) => {
       let allRows = await getRows(SPREADSHEET_ID, TAB_NAME)
       if (userLocation) {
         allRows = await syncLiveDistancesIfNeeded(allRows, userLocation)
@@ -331,7 +371,17 @@ export const tools = {
       status: z.enum(['visited', 'unvisited', 'any']).optional().default('any'),
       userLocation: z.object({ lat: z.number(), lng: z.number() }).optional().describe('User current location for live distance')
     }),
-    execute: async ({ query, count = 1, status = 'any', userLocation }: { query: string; count?: number; status?: 'visited' | 'unvisited' | 'any'; userLocation?: Coords }) => {
+    execute: async ({
+      query,
+      count = 1,
+      status = 'any',
+      userLocation
+    }: {
+      query: string
+      count?: number
+      status?: 'visited' | 'unvisited' | 'any'
+      userLocation?: Coords
+    }) => {
       let allRows = await getRows(SPREADSHEET_ID, TAB_NAME)
       if (userLocation) {
         allRows = await syncLiveDistancesIfNeeded(allRows, userLocation)
@@ -411,6 +461,48 @@ export const tools = {
       await appendRow(SPREADSHEET_ID, TAB_NAME, row)
 
       return { success: true, entry: { name: finalName, city: finalCity, distKm, travelMin, liveDistKm, liveTravelMin } }
+    }
+  }),
+  get_current_location: tool({
+    description:
+      'Get the user current coordinates and a human-readable address. Use this when the user asks "where am I" or to confirm their current location.',
+    inputSchema: z.object({
+      userLocation: z.object({ lat: z.number(), lng: z.number() }).optional().describe('User current location provided by the client'),
+      userId: z.string().optional().describe('User ID to fetch/store session location')
+    }),
+    execute: async ({ userLocation, userId }) => {
+      let coords = userLocation
+
+      if (!coords) {
+        return {
+          success: false,
+          error: 'GPS_DISABLED',
+          message: 'Wah, GPS-mu kayaknya mati bro atau koordinatmu nggak ketemu. Nyalain dulu GPS-nya terus share lokasimu ya!'
+        }
+      }
+
+      // Reverse geocode to get a human-readable address
+      let address = 'Lokasi Tidak Diketahui'
+      try {
+        const resp = await gmapsClient.reverseGeocode({
+          params: { latlng: coords, key: GMAPS_API_KEY },
+          timeout: 10000
+        })
+        address = resp.data.results?.[0]?.formatted_address || 'Lokasi Tidak Diketahui'
+      } catch (err) {
+        console.error('Reverse geocode error:', err)
+      }
+
+      // Sync to session sheet if userId is provided
+      if (userId) {
+        await setUserLocation(userId, coords)
+      }
+
+      return {
+        success: true,
+        coords,
+        address
+      }
     }
   })
 }

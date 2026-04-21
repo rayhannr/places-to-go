@@ -44,11 +44,12 @@ bot.on('message:text', async ctx => {
 
   const userLocation = userId ? await getUserLocation(userId) : null
   const locationContext = userLocation ? `\n\n[USER_CURRENT_LOCATION: ${userLocation.lat}, ${userLocation.lng}]` : ''
+  const userIdContext = userId ? `\n\n[USER_ID: ${userId}]` : ''
 
   try {
     const result = streamText({
       model: mistral(AI_CONFIG.model),
-      system: AI_CONFIG.systemPrompt + locationContext,
+      system: AI_CONFIG.systemPrompt + locationContext + userIdContext,
       prompt: prompt,
       tools,
       stopWhen: stepCountIs(AI_CONFIG.maxSteps)

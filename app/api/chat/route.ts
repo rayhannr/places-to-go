@@ -7,20 +7,22 @@ export const maxDuration = 60
 
 export async function POST(req: Request) {
   try {
-    const { messages } = await req.json()
+    const { messages, userId } = await req.json()
     const lastMessage = messages[messages.length - 1]
     const userLocation = lastMessage?.metadata?.userLocation as { lat: number; lng: number } | undefined
 
     const locationContext = userLocation 
       ? `\n\n[USER_CURRENT_LOCATION: ${userLocation.lat}, ${userLocation.lng}]` 
       : ''
+    
+    const userIdContext = userId ? `\n\n[USER_ID: ${userId}]` : ''
 
     const result = streamText({
       model: mistral(AI_CONFIG.model),
       messages: await convertToModelMessages(messages),
       tools,
       stopWhen: stepCountIs(AI_CONFIG.maxSteps),
-      system: AI_CONFIG.systemPrompt + locationContext
+      system: AI_CONFIG.systemPrompt + locationContext + userIdContext
     })
 
     return result.toUIMessageStreamResponse()
