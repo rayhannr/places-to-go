@@ -24,8 +24,9 @@ interface CacheEntry {
   expiresAt: number
 }
 
-// ─── In-memory cache ─────────────────────────────────────────────────────────
-const TTL_MS = 5 * 60 * 1000 // 5 minutes
+// ─── Constants ───────────────────────────────────────────────────────────────
+const TTL_MS = 5 * 60 * 1000 // 5 minutes for in-memory row cache
+const SESSION_TTL = 60 * 60 * 1000 // 1 hour for chat history session
 const cache = new Map<string, CacheEntry>()
 
 /**
@@ -126,30 +127,85 @@ export async function updateLiveDistances(
 }
 
 /**
- * Persist user location to a 'Session' tab.
+ * Get the full session data (location + chat history) for a user.
  */
-export async function setUserLocation(userId: string, coords: { lat: number; lng: number }): Promise<void> {
+export async function getChatSession(userId: string): Promise<{
+  lat: number | null
+  lng: number | null
+  history: any[]
+}> {
   const sheets = await getSheetsClient()
   const spreadsheetId = process.env.SPREADSHEET_ID!
   const tabName = 'Session'
 
-  // Get current session data to find the right row
   const response = await sheets.spreadsheets.values.get({
     spreadsheetId,
-    range: `${tabName}!A:C`
+    range: `${tabName}!A:E`
+  }).catch(() => ({ data: { values: [] } }))
+
+  const rows = (response.data.values || []) as any[][]
+  const userRow = rows.find(row => row[0] === userId)
+
+  if (userRow) {
+    let history = []
+    const lastActivity = userRow[4] ? parseInt(userRow[4]) : 0
+    const isExpired = Date.now() - lastActivity > SESSION_TTL
+
+    if (!isExpired) {
+      try {
+        history = userRow[3] ? JSON.parse(userRow[3]) : []
+      } catch (e) {
+        console.error('Error parsing chat history:', e)
+      }
+    }
+
+    return {
+      lat: userRow[1] ? parseFloat(userRow[1]) : null,
+      lng: userRow[2] ? parseFloat(userRow[2]) : null,
+      history
+    }
+  }
+
+  return { lat: null, lng: null, history: [] }
+}
+
+/**
+ * Persist user session (location and/or chat history) to the 'Session' tab.
+ */
+export async function saveChatSession(
+  userId: string, 
+  data: { lat?: number | null; lng?: number | null; history?: any[] }
+): Promise<void> {
+  const sheets = await getSheetsClient()
+  const spreadsheetId = process.env.SPREADSHEET_ID!
+  const tabName = 'Session'
+
+  // Get current session data to find the right row and preserve existing data
+  const response = await sheets.spreadsheets.values.get({
+    spreadsheetId,
+    range: `${tabName}!A:E`
   })
 
   const rows = (response.data.values || []) as any[][]
   const userIdx = rows.findIndex(row => row[0] === userId)
 
+  const existing = userIdx !== -1 ? rows[userIdx] : [userId, null, null, '[]', '0']
+  
+  const finalLat = data.lat !== undefined ? data.lat : existing[1]
+  const finalLng = data.lng !== undefined ? data.lng : existing[2]
+  const finalHistory = data.history !== undefined ? JSON.stringify(data.history) : existing[3]
+  const finalTimestamp = data.history !== undefined ? Date.now().toString() : existing[4]
+
+  const newValues = [userId, finalLat, finalLng, finalHistory, finalTimestamp]
+
   if (userIdx !== -1) {
     // Update existing row
     await sheets.spreadsheets.values.update({
       spreadsheetId,
-      range: `${tabName}!A${userIdx + 1}:C${userIdx + 1}`,
+      range: `${tabName}!A${userIdx + 1}:E${userIdx + 1}`,
       valueInputOption: 'USER_ENTERED',
       requestBody: {
-        values: [[userId, coords.lat, coords.lng]]
+        values: [newValues]
       }
     } as any)
   } else {
@@ -159,34 +215,9 @@ export async function setUserLocation(userId: string, coords: { lat: number; lng
       range: `${tabName}!A1`,
       valueInputOption: 'USER_ENTERED',
       requestBody: {
-        values: [[userId, coords.lat, coords.lng]]
+        values: [newValues]
       }
     } as any)
   }
 }
 
-/**
- * Retrieve user location from 'Session' tab.
- */
-export async function getUserLocation(userId: string): Promise<{ lat: number; lng: number } | null> {
-  const sheets = await getSheetsClient()
-  const spreadsheetId = process.env.SPREADSHEET_ID!
-  const tabName = 'Session'
-
-  const response = await sheets.spreadsheets.values.get({
-    spreadsheetId,
-    range: `${tabName}!A:C`
-  }).catch(() => ({ data: { values: [] } }))
-
-  const rows = (response.data.values || []) as any[][]
-  const userRow = rows.find(row => row[0] === userId)
-
-  if (userRow) {
-    return {
-      lat: parseFloat(userRow[1]),
-      lng: parseFloat(userRow[2])
-    }
-  }
-
-  return null
-}

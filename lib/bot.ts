@@ -1,9 +1,9 @@
 import { mistral } from '@ai-sdk/mistral'
-import { streamText, stepCountIs } from 'ai'
+import { generateText, stepCountIs, type ModelMessage } from 'ai'
 import { Bot } from 'grammy'
 import { AI_CONFIG } from './ai/config'
 import { tools } from './ai/tools'
-import { getUserLocation, setUserLocation } from './googleSheets'
+import { getChatSession, saveChatSession } from './googleSheets'
 
 const token = process.env.TELEGRAM_BOT_TOKEN
 const allowedUserIds = process.env.TELEGRAM_ALLOWED_USER_ID?.split(',').map(id => id.trim()) || []
@@ -24,7 +24,7 @@ bot.on('message:location', async ctx => {
     lng: ctx.message.location.longitude
   }
 
-  await setUserLocation(userId, coords)
+  await saveChatSession(userId, { lat: coords.lat, lng: coords.lng })
 
   await ctx.reply('Sipp bro, lokasimu udah tak catet! Sekarang kalo tanya jarak dari posisimu, langsung tak hitungin ya.')
 })
@@ -42,22 +42,32 @@ bot.on('message:text', async ctx => {
   // Send typing indicator
   await ctx.replyWithChatAction('typing')
 
-  const userLocation = userId ? await getUserLocation(userId) : null
-  const locationContext = userLocation ? `\n\n[USER_CURRENT_LOCATION: ${userLocation.lat}, ${userLocation.lng}]` : ''
+  const { lat, lng, history } = userId ? await getChatSession(userId) : { lat: null, lng: null, history: [] }
+  const locationContext = lat && lng ? `\n\n[USER_CURRENT_LOCATION: ${lat}, ${lng}]` : ''
   const userIdContext = userId ? `\n\n[USER_ID: ${userId}]` : ''
 
+  // Build messages array with history
+  const messages: ModelMessage[] = [...(history as ModelMessage[]), { role: 'user', content: prompt }]
+
   try {
-    const result = streamText({
+    const result = await generateText({
       model: mistral(AI_CONFIG.model),
       system: AI_CONFIG.systemPrompt + locationContext + userIdContext,
-      prompt: prompt,
+      messages,
       tools,
       stopWhen: stepCountIs(AI_CONFIG.maxSteps)
     })
 
-    const text = await result.text
+    const text = result.text
     if (text) {
       await ctx.reply(text, { parse_mode: 'Markdown' })
+    }
+
+    // Persist history (limit to last 10 messages to keep sheet size manageable)
+    if (userId) {
+      const fullHistory = result.response.messages
+      const limitedHistory = fullHistory.slice(-10)
+      await saveChatSession(userId, { history: limitedHistory })
     }
   } catch (error) {
     console.error('Telegram Bot Error:', error)

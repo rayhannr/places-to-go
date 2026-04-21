@@ -1,6 +1,6 @@
 import { tool } from 'ai'
 import { z } from 'zod'
-import { setUserLocation } from '../../googleSheets'
+import { saveChatSession } from '../../googleSheets'
 import { gmapsClient, GMAPS_API_KEY } from './utils'
 
 export const get_current_location = tool({
@@ -35,7 +35,7 @@ export const get_current_location = tool({
 
     // Sync to session sheet if userId is provided
     if (userId) {
-      await setUserLocation(userId, coords)
+      await saveChatSession(userId, { lat: coords.lat, lng: coords.lng })
     }
 
     return {
