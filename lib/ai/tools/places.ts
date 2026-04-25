@@ -18,7 +18,9 @@ const REFERENCE_LAT = process.env.REFERENCE_LAT ? parseFloat(process.env.REFEREN
 const REFERENCE_LNG = process.env.REFERENCE_LNG ? parseFloat(process.env.REFERENCE_LNG) : NaN
 
 if (isNaN(REFERENCE_LAT) || isNaN(REFERENCE_LNG)) {
-  console.warn('⚠️ REFERENCE_LAT or REFERENCE_LNG is missing or invalid in environment variables. Distance calculations from Home will be skipped.')
+  console.warn(
+    '⚠️ REFERENCE_LAT or REFERENCE_LNG is missing or invalid in environment variables. Distance calculations from Home will be skipped.'
+  )
 }
 
 export const get_random_places = tool({
@@ -205,9 +207,10 @@ export const add_place = tool({
       }
     }
 
-    let finalCity = city
+    let finalCity = city ? city.replace(/^(Kabupaten|Kota)\s+/i, '') : undefined
     if (!finalCity && c) {
-      finalCity = (await cityFromCoords(c)) || 'Unknown City'
+      const respCity = await cityFromCoords(c)
+      finalCity = respCity ? respCity.replace(/^(Kabupaten|Kota)\s+/i, '') : 'Unknown City'
     } else if (!finalCity) {
       finalCity = 'Unknown City'
     }
@@ -221,7 +224,9 @@ export const add_place = tool({
     if (c && !isNaN(REFERENCE_LAT) && !isNaN(REFERENCE_LNG)) {
       const apiResults = await getDistancesBatch(origin, [c])
       const res = apiResults[0]
-      if (res && (!res.status || res.status.code === 0)) {
+      const isSuccess = res && (!res.status?.code || res.status.code === 0)
+      
+      if (isSuccess) {
         distKm = res.distanceMeters ? +(res.distanceMeters / 1000).toFixed(2) : null
         const secs = parseDurationSecs(res.duration)
         travelMin = secs ? +(secs / 60).toFixed(1) : null
@@ -234,7 +239,9 @@ export const add_place = tool({
     if (c && userLocation) {
       const apiResults = await getDistancesBatch(userLocation, [c])
       const res = apiResults[0]
-      if (res && (!res.status || res.status.code === 0)) {
+      const isSuccess = res && (!res.status?.code || res.status.code === 0)
+      
+      if (isSuccess) {
         liveDistKm = res.distanceMeters ? +(res.distanceMeters / 1000).toFixed(2) : null
         const secs = parseDurationSecs(res.duration)
         liveTravelMin = secs ? +(secs / 60).toFixed(1) : null

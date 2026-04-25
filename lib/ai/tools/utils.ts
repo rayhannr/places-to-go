@@ -89,7 +89,9 @@ export async function cityFromCoords(coords: Coords): Promise<string | null> {
       const isCity = (c: { types: string[] }) =>
         c.types.includes(AddressType.locality) || c.types.includes(AddressType.administrative_area_level_2)
       const cityComp = result.address_components.find(isCity)
-      if (cityComp) return cityComp.long_name
+      if (cityComp) {
+        return cityComp.long_name.replace(/^(Kabupaten|Kota)\s+/i, '')
+      }
     }
   } catch (err) {}
   return null
@@ -110,7 +112,6 @@ export async function getDistancesBatch(origin: Coords, destinations: Coords[]):
       travelMode: 'DRIVE',
       routingPreference: 'TRAFFIC_UNAWARE'
     }
-
     try {
       const resp = await axios.post(url, body, {
         headers: {
