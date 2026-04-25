@@ -111,21 +111,28 @@ export async function getDistancesBatch(origin: Coords, destinations: Coords[]):
       routingPreference: 'TRAFFIC_UNAWARE'
     }
 
-    const resp = await axios.post(url, body, {
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Goog-Api-Key': GMAPS_API_KEY,
-        'X-Goog-FieldMask': 'originIndex,destinationIndex,distanceMeters,duration,status'
-      },
-      timeout: 30000
-    })
+    try {
+      const resp = await axios.post(url, body, {
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Goog-Api-Key': GMAPS_API_KEY,
+          'X-Goog-FieldMask': 'originIndex,destinationIndex,distanceMeters,duration,status'
+        },
+        timeout: 30000
+      })
 
-    if (Array.isArray(resp.data)) {
-      const adjusted = resp.data.map(r => ({
-        ...r,
-        destinationIndex: r.destinationIndex !== undefined ? r.destinationIndex + i : undefined
-      }))
-      allResults = allResults.concat(adjusted)
+      if (Array.isArray(resp.data)) {
+        const adjusted = resp.data.map(r => ({
+          ...r,
+          destinationIndex: r.destinationIndex !== undefined ? r.destinationIndex + i : undefined
+        }))
+        allResults = allResults.concat(adjusted)
+      } else {
+        console.error('Unexpected Routes API response format:', resp.data)
+      }
+    } catch (err: any) {
+      console.error('Routes API Error:', err.response?.data || err.message)
+      // Keep going for other chunks if they exist
     }
   }
 
@@ -135,8 +142,8 @@ export async function getDistancesBatch(origin: Coords, destinations: Coords[]):
 export function parseDurationSecs(duration: string | { seconds: string } | undefined): number | null {
   if (!duration) return null
   if (typeof duration === 'string') {
-    const m = duration.match(/(\d+)s/)
-    return m ? parseInt(m[1]) : null
+    const m = duration.match(/([\d.]+)s/)
+    return m ? parseFloat(m[1]) : null
   }
   if (typeof duration === 'object') {
     return duration.seconds ? parseInt(duration.seconds) : null

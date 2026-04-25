@@ -87,10 +87,12 @@ graph TD
 ## 6. Configuration (Environment Variables)
 - `MISTRAL_API_KEY`: Authentication for Mistral AI.
 - `SPREADSHEET_ID`: Google Sheet ID.
-- `GMAPS_API_KEY`: Google Cloud API Key.
+- `GMAPS_API_KEY`: Google Cloud API Key (Must have Geocoding and Routes API enabled).
 - `GOOGLE_APPLICATION_CREDENTIALS`: Path/Content of service account JSON.
 - `TELEGRAM_BOT_TOKEN`: Token from BotFather.
 - `TELEGRAM_ALLOWED_USER_ID`: Comma-separated list of IDs allowed to use the bot.
+- `REFERENCE_LAT`: Latitude of your home/base (e.g., -7.7828).
+- `REFERENCE_LNG`: Longitude of your home/base (e.g., 110.3608).
 
 ## 7. Future Roadmap
 - [x] **Telegram Integration**: 24/7 access via chatbot.

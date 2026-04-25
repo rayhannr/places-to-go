@@ -14,8 +14,12 @@ import {
   parseDurationSecs
 } from './utils'
 
-const REFERENCE_LAT = parseFloat(process.env.REFERENCE_LAT!)
-const REFERENCE_LNG = parseFloat(process.env.REFERENCE_LNG!)
+const REFERENCE_LAT = process.env.REFERENCE_LAT ? parseFloat(process.env.REFERENCE_LAT) : NaN
+const REFERENCE_LNG = process.env.REFERENCE_LNG ? parseFloat(process.env.REFERENCE_LNG) : NaN
+
+if (isNaN(REFERENCE_LAT) || isNaN(REFERENCE_LNG)) {
+  console.warn('⚠️ REFERENCE_LAT or REFERENCE_LNG is missing or invalid in environment variables. Distance calculations from Home will be skipped.')
+}
 
 export const get_random_places = tool({
   description: 'Get a list of random places from the tracker. Great for "surprise me" moments.',
@@ -214,7 +218,7 @@ export const add_place = tool({
     let travelMin: number | null = null
     const origin = { lat: REFERENCE_LAT, lng: REFERENCE_LNG }
 
-    if (c) {
+    if (c && !isNaN(REFERENCE_LAT) && !isNaN(REFERENCE_LNG)) {
       const apiResults = await getDistancesBatch(origin, [c])
       const res = apiResults[0]
       if (res && (!res.status || res.status.code === 0)) {
