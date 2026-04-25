@@ -196,6 +196,18 @@ export const add_place = tool({
     userLocation: z.object({ lat: z.number(), lng: z.number() }).optional().describe('User current location for live distance')
   }),
   execute: async ({ name, city, link, userLocation }: { name?: string; city?: string; link: string; userLocation?: Coords }) => {
+    // 🔍 Deduplication Check
+    const existingRows = await getRows(SPREADSHEET_ID, TAB_NAME)
+    const isDuplicate = existingRows.some(r => (r.Link || r.link || '').includes(link))
+    
+    if (isDuplicate) {
+      return { 
+        success: true, 
+        isDuplicate: true, 
+        message: 'Tempat ini udah ada di listmu bro, jadi nggak tak tambah lagi biar nggak dobel!' 
+      }
+    }
+
     const fullUrl = await resolveShortLink(link)
     let c = extractCoords(fullUrl)
 
