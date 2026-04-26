@@ -156,18 +156,47 @@ export function parseDurationSecs(duration: string | { seconds: string } | undef
   return null
 }
 
-export async function searchGmapsPlaces(query: string) {
+export interface GmapsPlace {
+  name?: string
+  formatted_address?: string
+  place_id?: string
+}
+
+export async function searchGmapsPlaces(query: string): Promise<GmapsPlace[]> {
   try {
-    const resp = await gmapsClient.textSearch({
-      params: {
-        query,
-        key: GMAPS_API_KEY
-      },
-      timeout: 10000
-    })
-    return resp.data.results || []
-  } catch (err) {
-    console.error('Gmaps Search Error:', err)
+    const url = 'https://places.googleapis.com/v1/places:searchText'
+    const resp = await axios.post<{
+      places?: Array<{
+        displayName?: { text: string }
+        formattedAddress?: string
+        id: string
+      }>
+    }>(
+      url,
+      { textQuery: query },
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Goog-Api-Key': GMAPS_API_KEY,
+          'X-Goog-FieldMask': 'places.displayName,places.formattedAddress,places.id'
+        },
+        timeout: 10000
+      }
+    )
+
+    const places = resp.data.places || []
+    return places.map(p => ({
+      name: p.displayName?.text || 'Unknown Name',
+      formatted_address: p.formattedAddress,
+      place_id: p.id
+    }))
+  } catch (err: unknown) {
+    if (axios.isAxiosError(err)) {
+      console.error('Gmaps Search Error:', err.response?.data || err.message)
+    } else {
+      console.error('Gmaps Search Error:', err)
+    }
     return []
   }
 }
+
