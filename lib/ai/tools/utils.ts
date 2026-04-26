@@ -78,6 +78,10 @@ export async function coordsFromPlaceName(placeName: string): Promise<Coords | n
   return null
 }
 
+export function cleanCityName(name: string): string {
+  return name.replace(/^(Kabupaten|Kota)\s+/i, '')
+}
+
 export async function cityFromCoords(coords: Coords): Promise<string | null> {
   try {
     const resp = await gmapsClient.reverseGeocode({
@@ -90,7 +94,7 @@ export async function cityFromCoords(coords: Coords): Promise<string | null> {
         c.types.includes(AddressType.locality) || c.types.includes(AddressType.administrative_area_level_2)
       const cityComp = result.address_components.find(isCity)
       if (cityComp) {
-        return cityComp.long_name.replace(/^(Kabupaten|Kota)\s+/i, '')
+        return cleanCityName(cityComp.long_name)
       }
     }
   } catch (err) {}
@@ -150,4 +154,20 @@ export function parseDurationSecs(duration: string | { seconds: string } | undef
     return duration.seconds ? parseInt(duration.seconds) : null
   }
   return null
+}
+
+export async function searchGmapsPlaces(query: string) {
+  try {
+    const resp = await gmapsClient.textSearch({
+      params: {
+        query,
+        key: GMAPS_API_KEY
+      },
+      timeout: 10000
+    })
+    return resp.data.results || []
+  } catch (err) {
+    console.error('Gmaps Search Error:', err)
+    return []
+  }
 }

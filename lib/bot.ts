@@ -75,8 +75,25 @@ bot.on('message:text', async ctx => {
       const limitedHistory = fullHistory.slice(-10)
       await saveChatSession(userId, { history: limitedHistory })
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error('Telegram Bot Error:', error)
-    await ctx.reply('Aduh bro, ada error nih pas mau jawab. Coba lagi entar ya!')
+    try {
+      // 🧠 Let the AI explain the error in its own persona
+      const errorResult = await generateText({
+        model: mistral(AI_CONFIG.model),
+        system:
+          AI_CONFIG.systemPrompt +
+          `\n\n[SYSTEM_ALERT: An error occurred while processing the user's request. Error: "${error.message}". Explain this breakdown to the user in your casual, bro-like persona. Apologize if needed, but stay in character. Keep it very short.]`,
+        messages: [{ role: 'user', content: prompt }]
+      })
+      if (errorResult.text) {
+        await ctx.reply(errorResult.text)
+      } else {
+        throw new Error('Empty AI error response')
+      }
+    } catch (fallbackError) {
+      // 💀 Absolute fallback if AI services are totally unreachable
+      await ctx.reply('Shit bro. Some stuff happen and i have no idea what to do')
+    }
   }
 })

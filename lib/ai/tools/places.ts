@@ -11,7 +11,9 @@ import {
   coordsFromPlaceName,
   cityFromCoords,
   getDistancesBatch,
-  parseDurationSecs
+  parseDurationSecs,
+  searchGmapsPlaces,
+  cleanCityName
 } from './utils'
 
 const REFERENCE_LAT = process.env.REFERENCE_LAT ? parseFloat(process.env.REFERENCE_LAT) : NaN
@@ -219,10 +221,10 @@ export const add_place = tool({
       }
     }
 
-    let finalCity = city ? city.replace(/^(Kabupaten|Kota)\s+/i, '') : undefined
+    let finalCity = city ? cleanCityName(city) : undefined
     if (!finalCity && c) {
       const respCity = await cityFromCoords(c)
-      finalCity = respCity ? respCity.replace(/^(Kabupaten|Kota)\s+/i, '') : 'Unknown City'
+      finalCity = respCity ? cleanCityName(respCity) : 'Unknown City'
     } else if (!finalCity) {
       finalCity = 'Unknown City'
     }
@@ -264,5 +266,33 @@ export const add_place = tool({
     await appendRow(SPREADSHEET_ID, TAB_NAME, row)
 
     return { success: true, entry: { name: finalName, city: finalCity, distKm, travelMin, liveDistKm, liveTravelMin } }
+  }
+})
+
+export const search_google_maps = tool({
+  description:
+    'Search for places directly on Google Maps (not in the personal list). Use this when the user wants to discover new places or search globally.',
+  inputSchema: z.object({
+    query: z.string().describe('The search query (e.g., "Soto Bu Slamet Jogja")')
+  }),
+  execute: async ({ query }: { query: string }) => {
+    const results = await searchGmapsPlaces(query)
+
+    return results.slice(0, 3).map(res => {
+      const addressParts = res.formatted_address?.split(', ') || []
+      let city = 'Unknown City'
+      if (addressParts.length >= 3) {
+        // Heuristic for Indonesian addresses: City is usually 3rd from the end
+        city = addressParts[addressParts.length - 3]
+      } else if (addressParts.length === 2) {
+        city = addressParts[0]
+      }
+
+      return {
+        name: res.name,
+        city: cleanCityName(city),
+        link: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(res.name || '')}&query_place_id=${res.place_id}`
+      }
+    })
   }
 })

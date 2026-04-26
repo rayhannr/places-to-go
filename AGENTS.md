@@ -4,7 +4,7 @@
 **Places To Go** is an AI-powered personal tracker designed to manage and discover food destinations. It leverages a conversational interface across both **Web** and **Telegram**, providing a seamless experience for adding new locations and receiving curated recommendations based on their personal Google Sheets data.
 
 ## 2. Core Features
-- **AI Chat Assistant**: A natural language interface powered by Mistral AI, speaking English, Indonesian, and Javanese.
+- **AI Chat Assistant**: A "roast master" persona powered by Mistral AI. It speaks English, Indonesian, and Javanese with a strictly "one language per message" rule and zero emojis.
 - **24/7 Telegram Bot**: Access your tracker anytime via a Telegram bot, secured with user ID filtering.
 - **Smart Data Entry (`add_place`)**: 
     - Automatically resolves Google Maps short links.
@@ -16,6 +16,10 @@
     - **Quickest**: Find spots with the shortest travel time.
     - **Random**: "Surprise me" discovery.
     - **City-based**: Filter by specific cities.
+- **Global Discovery (`search_google_maps`)**: 
+    - Search for new places directly on Google Maps (outside the personal tracker).
+    - Returns top 3 results with name, city, and direct Maps link.
+- **UI & UX Excellence**:
     - "Midnight & Neon" aesthetic with glassmorphism in the web app.
     - Real-time tool execution status indicators.
     - **Sonner Toast Notifications**: Sleek notifications for status updates.
@@ -23,6 +27,8 @@
     - Supports real-time GPS tracking from Web and Telegram.
     - **The 2km Rule**: Only recalculates distances if the user moves >2km, saving API costs.
     - **Persistent Sessions**: Stores user location in a dedicated `Session` tab on Google Sheets.
+- **AI-Driven Error Recovery**: 
+    - Secondary AI call in the Telegram bot to interpret and explain technical errors in persona.
 
 ## 3. Tech Stack
 ### Frontend & Bot
@@ -42,6 +48,7 @@
 - **Database**: [Google Sheets API](https://developers.google.com/sheets/api)
 - **Maps Services**: 
     - Google Maps Geocoding API
+    - Google Maps Places API (Text Search)
     - Google Routes API (Distance Matrix v2)
 - **Deployment**: Vercel
 
