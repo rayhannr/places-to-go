@@ -60,7 +60,9 @@ export function extractPlaceName(url: string | null): string | null {
   if (!url) return null
   const m = url.match(/\/maps\/place\/([^\/@]+)/)
   if (!m) return null
-  return decodeURIComponent(m[1].replace(/\+/g, ' '))
+  const full = decodeURIComponent(m[1].replace(/\+/g, ' '))
+  // Strip address suffixes (village, city, country, postal code) — keep only the first segment
+  return full.split(/,\s*| - /)[0].trim()
 }
 
 export async function coordsFromPlaceName(placeName: string): Promise<Coords | null> {

@@ -1,5 +1,5 @@
 
-import { CoreTool } from 'ai'
+import { Tool } from 'ai'
 
 /**
  * Tool execution cache to ensure idempotency within a single request or across retries.
@@ -13,7 +13,7 @@ const toolExecutionCache = new Map<string, any>()
  * @param requestId A unique ID for the current request (e.g., Telegram updateId or a UUID)
  * @returns Wrapped tools that cache results based on name and arguments
  */
-export function wrapToolsWithCache(tools: Record<string, CoreTool<any, any>>, requestId: string | number) {
+export function wrapToolsWithCache(tools: Record<string, Tool<any, any>>, requestId: string | number) {
   return Object.fromEntries(
     Object.entries(tools).map(([name, tool]) => [
       name,
