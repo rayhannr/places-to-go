@@ -1,6 +1,7 @@
 import { mistral } from '@ai-sdk/mistral'
 import { streamText, convertToModelMessages, stepCountIs, type ToolSet } from 'ai'
 import { tools } from '@/lib/ai/tools'
+import { wrapToolsWithCache } from '@/lib/ai/tools/dedupe'
 import { AI_CONFIG } from '@/lib/ai/config'
 
 export const maxDuration = 60
@@ -17,10 +18,13 @@ export async function POST(req: Request) {
     
     const userIdContext = userId ? `\n\n[USER_ID: ${userId}]` : ''
 
+    const requestId = `${userId || 'anon'}-${Date.now()}`
+    const wrappedTools = wrapToolsWithCache(tools as any, requestId)
+
     const result = streamText({
       model: mistral(AI_CONFIG.model),
       messages: await convertToModelMessages(messages),
-      tools,
+      tools: wrappedTools as ToolSet,
       stopWhen: stepCountIs(AI_CONFIG.maxSteps),
       system: AI_CONFIG.systemPrompt + locationContext + userIdContext
     })

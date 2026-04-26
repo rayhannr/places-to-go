@@ -3,6 +3,7 @@ import { generateText, stepCountIs, type ModelMessage } from 'ai'
 import { Bot } from 'grammy'
 import { AI_CONFIG } from './ai/config'
 import { tools } from './ai/tools'
+import { wrapToolsWithCache } from './ai/tools/dedupe'
 import { getChatSession, saveChatSession } from './googleSheets'
 
 const token = process.env.TELEGRAM_BOT_TOKEN
@@ -35,8 +36,25 @@ bot.on(['message:location', 'edited_message:location'], async ctx => {
   }
 })
 
+// Simple in-memory deduplication for Telegram retries
+const processedUpdates = new Set<number>()
+
 bot.on('message:text', async ctx => {
+  const updateId = ctx.update.update_id
   const userId = ctx.from?.id.toString()
+
+  // Deduplication check: if we're already handling this update, skip it
+  if (processedUpdates.has(updateId)) {
+    console.log(`[Dedupe] Skipping already processed update: ${updateId}`)
+    return
+  }
+  processedUpdates.add(updateId)
+
+  // Keep the set size manageable (last 100 updates)
+  if (processedUpdates.size > 100) {
+    const firstItem = processedUpdates.values().next().value
+    if (firstItem !== undefined) processedUpdates.delete(firstItem)
+  }
 
   if (allowedUserIds.length > 0 && !allowedUserIds.includes(userId || '')) {
     console.warn(`Unauthorized access attempt from User ID: ${userId}`)
@@ -55,12 +73,14 @@ bot.on('message:text', async ctx => {
   // Build messages array with history
   const messages: ModelMessage[] = [...(history as ModelMessage[]), { role: 'user', content: prompt }]
 
+  const wrappedTools = wrapToolsWithCache(tools as any, updateId)
+
   try {
     const result = await generateText({
       model: mistral(AI_CONFIG.model),
       system: AI_CONFIG.systemPrompt + locationContext + userIdContext,
       messages,
-      tools,
+      tools: wrappedTools as any,
       stopWhen: stepCountIs(AI_CONFIG.maxSteps)
     })
 
