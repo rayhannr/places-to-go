@@ -1,13 +1,15 @@
 import { tool } from 'ai'
 import levenshtein from 'fast-levenshtein'
 import { z } from 'zod'
-import { getRows, appendRow, PlaceRow } from '../../googleSheets'
+import { getRows, appendRow } from '../../googleSheets'
 import { compactPlace, syncLiveDistancesIfNeeded, filterByStatus, SPREADSHEET_ID, TAB_NAME } from './logic'
 import {
   Coords,
   resolveShortLink,
   extractCoords,
   extractPlaceName,
+  extractPlaceId,
+  getPlaceDetails,
   coordsFromPlaceName,
   cityFromCoords,
   getDistancesBatch,
@@ -211,17 +213,31 @@ export const add_place = tool({
     }
 
     const fullUrl = await resolveShortLink(link)
+    const placeId = extractPlaceId(fullUrl)
     let c = extractCoords(fullUrl)
 
-    let finalName = name || extractPlaceName(fullUrl)
+    let finalName = name
+    let finalCity = city ? cleanCityName(city) : undefined
 
-    if (!c) {
-      if (finalName) {
-        c = await coordsFromPlaceName(finalName)
+    // If we have a place_id, use the Places API to get accurate details
+    if (placeId) {
+      const details = await getPlaceDetails(placeId)
+      if (details) {
+        if (!finalName && details.name) finalName = details.name
+        if (!c && details.coords) c = details.coords
+        if (!finalCity && details.city) finalCity = details.city
       }
     }
 
-    let finalCity = city ? cleanCityName(city) : undefined
+    // Fallback: extract name from URL
+    if (!finalName) finalName = extractPlaceName(fullUrl) ?? undefined
+
+    // Fallback: geocode by name if still no coords
+    if (!c && finalName) {
+      c = await coordsFromPlaceName(finalName)
+    }
+
+    // Fallback: reverse geocode for city
     if (!finalCity && c) {
       const respCity = await cityFromCoords(c)
       finalCity = respCity ? cleanCityName(respCity) : 'Unknown City'

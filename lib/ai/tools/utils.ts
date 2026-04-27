@@ -34,6 +34,15 @@ export function haversineDistance(lat1: number, lon1: number, lat2: number, lon2
 }
 
 export async function resolveShortLink(url: string): Promise<string> {
+  // Unwrap google.com/url?q=... redirectors
+  if (url.includes('google.com/url?q=')) {
+    try {
+      const urlObj = new URL(url)
+      const q = urlObj.searchParams.get('q')
+      if (q) return resolveShortLink(q)
+    } catch (e) {}
+  }
+
   return new Promise(resolve => {
     const req = https.request(url, { method: 'HEAD', headers: { 'User-Agent': 'Mozilla/5.0' } }, res => {
       if (res.statusCode && res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
@@ -59,10 +68,21 @@ export function extractCoords(url: string | null): Coords | null {
 export function extractPlaceName(url: string | null): string | null {
   if (!url) return null
   const m = url.match(/\/maps\/place\/([^\/@]+)/)
-  if (!m) return null
-  const full = decodeURIComponent(m[1].replace(/\+/g, ' '))
-  // Strip address suffixes (village, city, country, postal code) — keep only the first segment
-  return full.split(/,\s*| - /)[0].trim()
+  if (m) {
+    const full = decodeURIComponent(m[1].replace(/\+/g, ' '))
+    return full.split(/,\s*| - /)[0].trim()
+  }
+
+  // Handle search/query URLs
+  try {
+    const urlObj = new URL(url)
+    const query = urlObj.searchParams.get('query')
+    if (query && !query.match(/^-?\d+\.\d+,-?\d+\.\d+$/)) {
+      return query.split(/,\s*| - /)[0].trim()
+    }
+  } catch (e) {}
+
+  return null
 }
 
 export async function coordsFromPlaceName(placeName: string): Promise<Coords | null> {
@@ -202,3 +222,52 @@ export async function searchGmapsPlaces(query: string): Promise<GmapsPlace[]> {
   }
 }
 
+export function extractPlaceId(url: string | null): string | null {
+  if (!url) return null
+  try {
+    const urlObj = new URL(url)
+    return urlObj.searchParams.get('query_place_id') || urlObj.searchParams.get('ftid') || null
+  } catch (e) {
+    return null
+  }
+}
+
+export async function getPlaceDetails(placeId: string): Promise<{ name?: string; coords?: Coords; city?: string } | null> {
+  try {
+    const url = `https://places.googleapis.com/v1/places/${placeId}`
+    const resp = await axios.get<{
+      displayName?: { text: string }
+      location?: { latitude: number; longitude: number }
+      addressComponents?: Array<{ longText: string; types: string[] }>
+    }>(url, {
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Goog-Api-Key': GMAPS_API_KEY,
+        'X-Goog-FieldMask': 'displayName,location,addressComponents'
+      },
+      timeout: 10000
+    })
+
+    const data = resp.data
+    let city: string | undefined
+    if (data.addressComponents) {
+      const cityComp = data.addressComponents.find(
+        c => c.types.includes('locality') || c.types.includes('administrative_area_level_2')
+      )
+      if (cityComp) city = cleanCityName(cityComp.longText)
+    }
+
+    return {
+      name: data.displayName?.text,
+      coords: data.location ? { lat: data.location.latitude, lng: data.location.longitude } : undefined,
+      city
+    }
+  } catch (err) {
+    if (axios.isAxiosError(err)) {
+      console.error('Gmaps Place Details Error:', err.response?.data || err.message)
+    } else {
+      console.error('Gmaps Place Details Error:', err)
+    }
+    return null
+  }
+}
