@@ -14,6 +14,7 @@ function ToolPartView({ part }: { part: ToolPart }) {
     switch (toolName) {
       case 'add_place': return 'Adding place to tracker…'
       case 'get_current_location': return 'Locating you…'
+      case 'sync_all_distances': return 'Syncing distances from your location…'
       default: return 'Fetching your places…'
     }
   }
@@ -46,6 +47,25 @@ function ToolPartView({ part }: { part: ToolPart }) {
       return (
         <ToolResult icon={<CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />}>
           Located: {address}
+        </ToolResult>
+      )
+    }
+
+    // 3. Syncing distances
+    if (toolName === 'sync_all_distances') {
+      if (!output?.success) {
+        return (
+          <ToolResult icon={<CheckCircle2 className="w-3.5 h-3.5 text-yellow-500 shrink-0" />}>
+            No GPS — share your location first
+          </ToolResult>
+        )
+      }
+      const label = output?.updated
+        ? `Updated distances for ${output.count} place${output.count !== 1 ? 's' : ''}`
+        : 'Already up to date — you haven\'t moved more than 2km'
+      return (
+        <ToolResult icon={<CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />}>
+          {label}
         </ToolResult>
       )
     }

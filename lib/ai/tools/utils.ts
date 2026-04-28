@@ -20,7 +20,7 @@ export interface DistanceMatrixResult {
 
 /**
  * Calculates the straight-line distance between two points in km.
- * Used for the "3km rule" check to avoid unnecessary API calls.
+ * Used for the "2km rule" check to avoid unnecessary API calls.
  */
 export function haversineDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const R = 6371 // Radius of the earth in km
@@ -58,10 +58,23 @@ export async function resolveShortLink(url: string): Promise<string> {
 
 export function extractCoords(url: string | null): Coords | null {
   if (!url) return null
+  
+  // 1. Check for our custom "injected" coordinates in the query string
+  try {
+    const urlObj = new URL(url)
+    const ll = urlObj.searchParams.get('ll') || urlObj.searchParams.get('coords')
+    if (ll) {
+      const [lat, lng] = ll.split(',').map(Number)
+      if (!isNaN(lat) && !isNaN(lng)) return { lat, lng }
+    }
+  } catch (e) {}
+
+  // 2. Standard Google Maps URL patterns
   let m = url.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/)
   if (m) return { lat: parseFloat(m[1]), lng: parseFloat(m[2]) }
   m = url.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/)
   if (m) return { lat: parseFloat(m[1]), lng: parseFloat(m[2]) }
+  
   return null
 }
 

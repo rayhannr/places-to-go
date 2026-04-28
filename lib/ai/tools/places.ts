@@ -278,7 +278,14 @@ export const add_place = tool({
       }
     }
 
-    const row = [finalName, finalCity, link, distKm!, travelMin!, '', liveDistKm, liveTravelMin]
+    // Inject coordinates into the URL if we have them but the URL doesn't (to make future syncs robust)
+    let savedUrl = fullUrl
+    if (c && !extractCoords(fullUrl)) {
+      const separator = fullUrl.includes('?') ? '&' : '?'
+      savedUrl = `${fullUrl}${separator}ll=${c.lat},${c.lng}`
+    }
+
+    const row = [finalName, finalCity, savedUrl, distKm!, travelMin!, '', liveDistKm, liveTravelMin]
     await appendRow(SPREADSHEET_ID, TAB_NAME, row)
 
     return { success: true, entry: { name: finalName, city: finalCity, distKm, travelMin, liveDistKm, liveTravelMin } }

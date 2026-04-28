@@ -8,9 +8,10 @@ export const maxDuration = 60
 
 export async function POST(req: Request) {
   try {
-    const { messages, userId } = await req.json()
+    const { messages } = await req.json()
     const lastMessage = messages[messages.length - 1]
     const userLocation = lastMessage?.metadata?.userLocation as { lat: number; lng: number } | undefined
+    const userId = lastMessage?.metadata?.userId as string | undefined
 
     const locationContext = userLocation 
       ? `\n\n[USER_CURRENT_LOCATION: ${userLocation.lat}, ${userLocation.lng}]` 

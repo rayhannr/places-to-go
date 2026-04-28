@@ -108,8 +108,6 @@ export async function updateLiveDistances(
   values: (string | number | null)[][]
 ): Promise<void> {
   const sheets = await getSheetsClient()
-  
-  // Update G2:H{1+values.length}
   const range = `${tabName}!G2:H${1 + values.length}`
   
   await sheets.spreadsheets.values.update({
@@ -121,7 +119,30 @@ export async function updateLiveDistances(
     }
   } as any)
 
-  // Invalidate cache
+  const key = `${spreadsheetId}::${tabName}`
+  cache.delete(key)
+}
+
+/**
+ * Batch update the Link column (Column C).
+ */
+export async function updateSheetLinks(
+  spreadsheetId: string,
+  tabName: string,
+  values: (string | null)[][]
+): Promise<void> {
+  const sheets = await getSheetsClient()
+  const range = `${tabName}!C2:C${1 + values.length}`
+  
+  await sheets.spreadsheets.values.update({
+    spreadsheetId,
+    range,
+    valueInputOption: 'USER_ENTERED',
+    requestBody: {
+      values
+    }
+  } as any)
+
   const key = `${spreadsheetId}::${tabName}`
   cache.delete(key)
 }

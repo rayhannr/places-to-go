@@ -33,6 +33,18 @@ export default function ChatPage() {
   }
 
   const { messages, sendMessage, status } = useChat({ transport: new DefaultChatTransport({ api: '/api/chat' }) })
+  const userIdRef = useRef<string | null>(null)
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      let id = localStorage.getItem('places_user_id')
+      if (!id) {
+        id = Math.random().toString(36).substring(2, 15)
+        localStorage.setItem('places_user_id', id)
+      }
+      userIdRef.current = id
+    }
+  }, [])
 
   const isLoading = status !== 'ready' && status !== 'error'
   const typedMessages = messages as Message[]
@@ -40,7 +52,10 @@ export default function ChatPage() {
   const handleSendMessage = (text: string) => {
     sendMessage({
       text,
-      metadata: { userLocation: coordsRef.current }
+      metadata: { 
+        userLocation: coordsRef.current,
+        userId: userIdRef.current 
+      }
     })
   }
 
