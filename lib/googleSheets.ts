@@ -242,3 +242,27 @@ export async function saveChatSession(
   }
 }
 
+/**
+ * Update the "Date Visited" column (Column F) for a specific row.
+ */
+export async function updateVisitDate(
+  spreadsheetId: string,
+  tabName: string,
+  rowIndex: number,
+  date: string
+): Promise<void> {
+  const sheets = await getSheetsClient()
+  const range = `${tabName}!F${rowIndex}`
+  
+  await sheets.spreadsheets.values.update({
+    spreadsheetId,
+    range,
+    valueInputOption: 'USER_ENTERED',
+    requestBody: {
+      values: [[date]]
+    }
+  } as any)
+
+  const key = `${spreadsheetId}::${tabName}`
+  cache.delete(key)
+}

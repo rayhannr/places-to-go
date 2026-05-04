@@ -15,6 +15,7 @@ function ToolPartView({ part }: { part: ToolPart }) {
       case 'add_place': return 'Adding place to tracker…'
       case 'get_current_location': return 'Locating you…'
       case 'sync_all_distances': return 'Syncing distances from your location…'
+      case 'visit_place': return 'Updating visit date…'
       default: return 'Fetching your places…'
     }
   }
@@ -66,6 +67,24 @@ function ToolPartView({ part }: { part: ToolPart }) {
       return (
         <ToolResult icon={<CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />}>
           {label}
+        </ToolResult>
+      )
+    }
+    
+    // 4. Marking a place as visited
+    if (toolName === 'visit_place') {
+      const name = output?.placeName ?? 'place'
+      const date = output?.visitDate ?? 'today'
+      if (!output?.success) {
+        return (
+          <ToolResult icon={<CheckCircle2 className="w-3.5 h-3.5 text-red-500 shrink-0" />}>
+            {output?.message || `Failed to mark "${name}" as visited`}
+          </ToolResult>
+        )
+      }
+      return (
+        <ToolResult icon={<CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />}>
+          Marked "{name}" visited on {date}
         </ToolResult>
       )
     }

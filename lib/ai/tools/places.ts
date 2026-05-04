@@ -1,8 +1,7 @@
 import { tool } from 'ai'
-import levenshtein from 'fast-levenshtein'
 import { z } from 'zod'
-import { getRows, appendRow } from '../../googleSheets'
-import { compactPlace, syncLiveDistancesIfNeeded, filterByStatus, SPREADSHEET_ID, TAB_NAME } from './logic'
+import { getRows, appendRow, updateVisitDate } from '../../googleSheets'
+import { compactPlace, syncLiveDistancesIfNeeded, filterByStatus, fuzzySearchPlaces, SPREADSHEET_ID, TAB_NAME } from './logic'
 import {
   Coords,
   resolveShortLink,
@@ -174,28 +173,9 @@ export const search_places_by_name = tool({
     }
     const filtered = status === 'any' ? allRows : filterByStatus(allRows, status as any)
 
-    const results = filtered
-      .map(r => {
-        const name = (r.Name || r.name || '').toLowerCase()
-        const queryLower = query.toLowerCase()
-        
-        let score = levenshtein.get(name, queryLower)
-        
-        if (name === queryLower) {
-          score = 0 // Identical string match
-        } else if (name.includes(queryLower) || queryLower.includes(name)) {
-          score = 1 // Strong match (one is a part of the other)
-        } else {
-          score = score + 2 // Fuzzy match penalty
-        }
-        
-        return { row: r, score }
-      })
-      .sort((a, b) => a.score - b.score)
+    const results = fuzzySearchPlaces(filtered, query)
 
-    return results
-      .slice(0, Math.min(count, 10))
-      .map(res => compactPlace(res.row, !!userLocation))
+    return results.slice(0, Math.min(count, 10)).map(res => compactPlace(res.row, !!userLocation))
   }
 })
 
@@ -212,12 +192,12 @@ export const add_place = tool({
     // 🔍 Deduplication Check
     const existingRows = await getRows(SPREADSHEET_ID, TAB_NAME)
     const isDuplicate = existingRows.some(r => (r.Link || r.link || '').includes(link))
-    
+
     if (isDuplicate) {
-      return { 
-        success: true, 
-        isDuplicate: true, 
-        message: 'Tempat ini udah ada di listmu bro, jadi nggak tak tambah lagi biar nggak dobel!' 
+      return {
+        success: true,
+        isDuplicate: true,
+        message: 'Tempat ini udah ada di listmu bro, jadi nggak tak tambah lagi biar nggak dobel!'
       }
     }
 
@@ -264,7 +244,7 @@ export const add_place = tool({
       const apiResults = await getDistancesBatch(origin, [c])
       const res = apiResults[0]
       const isSuccess = res && (!res.status?.code || res.status.code === 0)
-      
+
       if (isSuccess) {
         distKm = res.distanceMeters ? +(res.distanceMeters / 1000).toFixed(2) : null
         const secs = parseDurationSecs(res.duration)
@@ -279,7 +259,7 @@ export const add_place = tool({
       const apiResults = await getDistancesBatch(userLocation, [c])
       const res = apiResults[0]
       const isSuccess = res && (!res.status?.code || res.status.code === 0)
-      
+
       if (isSuccess) {
         liveDistKm = res.distanceMeters ? +(res.distanceMeters / 1000).toFixed(2) : null
         const secs = parseDurationSecs(res.duration)
@@ -298,6 +278,42 @@ export const add_place = tool({
     await appendRow(SPREADSHEET_ID, TAB_NAME, row)
 
     return { success: true, entry: { name: finalName, city: finalCity, distKm, travelMin, liveDistKm, liveTravelMin } }
+  }
+})
+
+export const visit_place = tool({
+  description: 'Mark a place as visited by updating its visit date.',
+  inputSchema: z.object({
+    name: z.string().describe('The name of the place to mark as visited'),
+    date: z.string().optional().describe('The date visited in YYYY-MM-DD format. Defaults to today if not provided.')
+  }),
+  execute: async ({ name, date }: { name: string; date?: string }) => {
+    const today = new Date().toISOString().split('T')[0]
+    const visitDate = date || today
+
+    let allRows = await getRows(SPREADSHEET_ID, TAB_NAME)
+
+    // Find the best match using fuzzy search
+    const results = fuzzySearchPlaces(allRows, name)
+
+    const bestMatch = results[0]
+
+    // Threshold for matching: if the score is too high, it's likely not a match
+    if (!bestMatch || bestMatch.score > 5) {
+      return {
+        success: false,
+        message: `Waduh, tempat bernama "${name}" nggak ketemu di listmu. Coba cek lagi namanya, bro.`
+      }
+    }
+
+    await updateVisitDate(SPREADSHEET_ID, TAB_NAME, bestMatch.index, visitDate)
+
+    return {
+      success: true,
+      placeName: bestMatch.row.Name || bestMatch.row.name,
+      visitDate,
+      message: `Mantap! "${bestMatch.row.Name || bestMatch.row.name}" udah gue tandai dikunjungi tanggal ${visitDate}.`
+    }
   }
 })
 

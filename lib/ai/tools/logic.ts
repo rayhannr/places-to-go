@@ -1,3 +1,4 @@
+import levenshtein from 'fast-levenshtein'
 import { PlaceRow, updateLiveDistances, updateSheetLinks } from '../../googleSheets'
 import { Coords, extractCoords, getDistancesBatch, haversineDistance, parseDurationSecs, resolveShortLink, coordsFromPlaceName } from './utils'
 
@@ -137,4 +138,28 @@ export async function syncLiveDistancesIfNeeded(rows: PlaceRow[], userLocation: 
 
 export function filterByStatus(rows: PlaceRow[], status: 'visited' | 'unvisited') {
   return rows.filter(r => (status === 'visited' ? !!r['Date Visited'] : !r['Date Visited']))
+}
+
+/**
+ * Perform fuzzy search on rows by place name.
+ */
+export function fuzzySearchPlaces(rows: PlaceRow[], query: string) {
+  const queryLower = query.toLowerCase()
+  
+  return rows
+    .map((r, index) => {
+      const name = (r.Name || r.name || '').toLowerCase()
+      let score = levenshtein.get(name, queryLower)
+      
+      if (name === queryLower) {
+        score = 0
+      } else if (name.includes(queryLower) || queryLower.includes(name)) {
+        score = 1
+      } else {
+        score = score + 2
+      }
+      
+      return { row: r, index: index + 2, score }
+    })
+    .sort((a, b) => a.score - b.score)
 }
