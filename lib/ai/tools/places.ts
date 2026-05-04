@@ -177,16 +177,25 @@ export const search_places_by_name = tool({
     const results = filtered
       .map(r => {
         const name = (r.Name || r.name || '').toLowerCase()
-        const distance = levenshtein.get(name, query.toLowerCase())
-        const isPartial = name.includes(query.toLowerCase())
-        // Partial matches get a huge boost (score 0), otherwise use Levenshtein distance
-        return { row: r, score: isPartial ? 0 : distance }
+        const queryLower = query.toLowerCase()
+        
+        let score = levenshtein.get(name, queryLower)
+        
+        if (name === queryLower) {
+          score = 0 // Identical string match
+        } else if (name.includes(queryLower) || queryLower.includes(name)) {
+          score = 1 // Strong match (one is a part of the other)
+        } else {
+          score = score + 2 // Fuzzy match penalty
+        }
+        
+        return { row: r, score }
       })
       .sort((a, b) => a.score - b.score)
 
-    // Take the top 10 most relevant results, then shuffle THEM for variety (if more than count)
-    const topResults = results.slice(0, 10).sort(() => 0.5 - Math.random())
-    return topResults.slice(0, Math.min(count, 10)).map(res => compactPlace(res.row, !!userLocation))
+    return results
+      .slice(0, Math.min(count, 10))
+      .map(res => compactPlace(res.row, !!userLocation))
   }
 })
 
