@@ -282,14 +282,15 @@ export const add_place = tool({
 })
 
 export const visit_place = tool({
-  description: 'Mark a place as visited by updating its visit date.',
+  description: 'Mark a place as visited by updating its visit date, or clear the visit date if it was marked by mistake.',
   inputSchema: z.object({
     name: z.string().describe('The name of the place to mark as visited'),
-    date: z.string().optional().describe('The date visited in YYYY-MM-DD format. Defaults to today if not provided.')
+    date: z.string().optional().describe('The date visited in YYYY-MM-DD format. Defaults to today if not provided.'),
+    unvisit: z.boolean().optional().describe('Set to true if you want to clear/delete the visit date for this place.')
   }),
-  execute: async ({ name, date }: { name: string; date?: string }) => {
+  execute: async ({ name, date, unvisit }: { name: string; date?: string; unvisit?: boolean }) => {
     const today = new Date().toISOString().split('T')[0]
-    const visitDate = date || today
+    const visitDate = unvisit ? '' : (date || today)
 
     let allRows = await getRows(SPREADSHEET_ID, TAB_NAME)
 
@@ -308,11 +309,20 @@ export const visit_place = tool({
 
     await updateVisitDate(SPREADSHEET_ID, TAB_NAME, bestMatch.index, visitDate)
 
+    const finalName = bestMatch.row.Name || bestMatch.row.name
+    if (unvisit) {
+      return {
+        success: true,
+        placeName: finalName,
+        message: `Oke, status kunjungan "${finalName}" udah gue hapus ya.`
+      }
+    }
+
     return {
       success: true,
-      placeName: bestMatch.row.Name || bestMatch.row.name,
+      placeName: finalName,
       visitDate,
-      message: `Mantap! "${bestMatch.row.Name || bestMatch.row.name}" udah gue tandai dikunjungi tanggal ${visitDate}.`
+      message: `Mantap! "${finalName}" udah gue tandai dikunjungi tanggal ${visitDate}.`
     }
   }
 })

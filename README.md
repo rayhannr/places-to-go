@@ -17,6 +17,9 @@ An AI-powered personal food tracker that lives in your **browser** and your **Te
   - `Nearby`: Find spots closest to you.
   - `Quickest`: Find spots with the shortest travel time.
   - `Surprise Me`: Random picks from your list.
+- **✅ Visit Tracking**:
+  - Mark places as visited to keep track of your journey.
+  - `Unvisit`: Easily clear visit dates if you make a mistake.
 - **🌌 Midnight & Neon UI**: A sleek, high-contrast dark theme with glassmorphism.
 - **📍 Real-time Geolocation**: 
   - Web: One-click "Go Live" location tracking.

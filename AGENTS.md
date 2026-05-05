@@ -19,6 +19,10 @@
 - **Global Discovery (`search_google_maps`)**: 
     - Search for new places directly on Google Maps (outside the personal tracker).
     - Returns top 3 results with name, city, and direct Maps link.
+- **Visit Tracking (`visit_place`)**:
+    - Mark places as visited with a specific date.
+    - **Unvisit Capability**: Clear or delete a visit date if marked by mistake.
+    - Uses fuzzy matching to find the correct place by name.
 - **UI & UX Excellence**:
     - "Midnight & Neon" aesthetic with glassmorphism in the web app.
     - Real-time tool execution status indicators.
