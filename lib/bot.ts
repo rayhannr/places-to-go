@@ -69,6 +69,7 @@ bot.on('message:text', async ctx => {
   const { lat, lng, history } = userId ? await getChatSession(userId) : { lat: null, lng: null, history: [] }
   const locationContext = lat && lng ? `\n\n[USER_CURRENT_LOCATION: ${lat}, ${lng}]` : ''
   const userIdContext = userId ? `\n\n[USER_ID: ${userId}]` : ''
+  const dateContext = `\n\n[CURRENT_DATE: ${new Date().toISOString()}]`
 
   // Build messages array with history
   const messages: ModelMessage[] = [...(history as ModelMessage[]), { role: 'user', content: prompt }]
@@ -78,7 +79,7 @@ bot.on('message:text', async ctx => {
   try {
     const result = await generateText({
       model: mistral(AI_CONFIG.model),
-      system: AI_CONFIG.systemPrompt + locationContext + userIdContext,
+      system: AI_CONFIG.systemPrompt + locationContext + userIdContext + dateContext,
       messages,
       tools: wrappedTools as any,
       stopWhen: stepCountIs(AI_CONFIG.maxSteps)
@@ -103,6 +104,7 @@ bot.on('message:text', async ctx => {
         model: mistral(AI_CONFIG.model),
         system:
           AI_CONFIG.systemPrompt +
+          dateContext +
           `\n\n[SYSTEM_ALERT: An error occurred while processing the user's request. Error: "${error.message}". Explain this breakdown to the user in your casual, bro-like persona. Apologize if needed, but stay in character. Keep it very short.]`,
         messages: [{ role: 'user', content: prompt }]
       })

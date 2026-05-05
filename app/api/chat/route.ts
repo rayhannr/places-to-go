@@ -18,6 +18,7 @@ export async function POST(req: Request) {
       : ''
     
     const userIdContext = userId ? `\n\n[USER_ID: ${userId}]` : ''
+    const dateContext = `\n\n[CURRENT_DATE: ${new Date().toISOString()}]`
 
     const requestId = `${userId || 'anon'}-${Date.now()}`
     const wrappedTools = wrapToolsWithCache(tools as any, requestId)
@@ -27,7 +28,7 @@ export async function POST(req: Request) {
       messages: await convertToModelMessages(messages),
       tools: wrappedTools as ToolSet,
       stopWhen: stepCountIs(AI_CONFIG.maxSteps),
-      system: AI_CONFIG.systemPrompt + locationContext + userIdContext
+      system: AI_CONFIG.systemPrompt + locationContext + userIdContext + dateContext
     })
 
     return result.toUIMessageStreamResponse()

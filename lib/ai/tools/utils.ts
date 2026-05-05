@@ -114,7 +114,7 @@ export async function coordsFromPlaceName(placeName: string): Promise<Coords | n
 }
 
 export function cleanCityName(name: string): string {
-  return name.replace(/^(Kabupaten|Kota)\s+/i, '')
+  return name.replace(/^(Kabupaten|Kota)\s+/i, '').replace(/\s+City$/i, '')
 }
 
 export async function cityFromCoords(coords: Coords): Promise<string | null> {
