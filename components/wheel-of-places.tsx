@@ -1,0 +1,687 @@
+'use client'
+
+import axios from 'axios'
+import { Volume2, VolumeX, RotateCcw, Sparkles, MapPin, Play, Award, Clock, Compass, X } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { toast } from 'sonner'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import { Separator } from '@/components/ui/separator'
+
+interface Place {
+  name: string
+  city: string
+  link: string
+  dist: string | number | null
+  time: string | number | null
+  visited: string | null
+  index: number
+}
+
+const NEON_COLORS = [
+  '#3b82f6', // Neon Blue
+  '#8b5cf6', // Neon Violet
+  '#ec4899', // Neon Pink
+  '#10b981', // Neon Green
+  '#f97316', // Neon Orange
+  '#06b6d4', // Neon Cyan
+  '#eab308' // Neon Yellow
+]
+
+export function WheelOfPlaces() {
+  const [places, setPlaces] = useState<Place[]>([])
+  const [loading, setLoading] = useState(true)
+  const [filter, setFilter] = useState<'unvisited' | 'visited' | 'all'>('unvisited')
+  const [search, setSearch] = useState('')
+  const [soundEnabled, setSoundEnabled] = useState(true)
+
+  // Selection / Wheel Pool
+  const [activePool, setActivePool] = useState<Place[]>([])
+  const [selectedIndices, setSelectedIndices] = useState<Set<number>>(new Set())
+  const [pickedIndices, setPickedIndices] = useState<Set<number>>(new Set())
+
+  // Animation / Spin States
+  const [isSpinning, setIsSpinning] = useState(false)
+  const [winner, setWinner] = useState<Place | null>(null)
+  const [showWinnerModal, setShowWinnerModal] = useState(false)
+
+  // Canvas Refs
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const angleRef = useRef(0)
+  const velocityRef = useRef(0)
+  const lastIndexRef = useRef(-1)
+  const pointerWiggleRef = useRef(0)
+  const requestRef = useRef<number | null>(null)
+
+  // Audio Context Ref
+  const audioCtxRef = useRef<AudioContext | null>(null)
+
+  // Fetch places on load
+  const fetchPlaces = async () => {
+    try {
+      setLoading(true)
+      const res = await axios.get<Place[]>('/api/places')
+      const data = res.data
+      setPlaces(data)
+
+      // Default: Check all places that match the initial filter
+      const initialPool = data.filter((p: Place) => !p.visited)
+      setSelectedIndices(new Set(initialPool.map((p: Place) => p.index)))
+      setPickedIndices(new Set())
+    } catch (err: any) {
+      const errMsg = err.response?.data?.error || err.message || 'Gagal load data, bro.'
+      toast.error(errMsg)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchPlaces()
+  }, [])
+
+  // Sync active pool based on selected indices and picked indices
+  useEffect(() => {
+    const pool = places.filter(p => selectedIndices.has(p.index) && !pickedIndices.has(p.index))
+    setActivePool(pool)
+  }, [places, selectedIndices, pickedIndices])
+
+  // Synthesis-based sound effect
+  const playTickSound = () => {
+    if (!soundEnabled || typeof window === 'undefined') return
+    try {
+      if (!audioCtxRef.current) {
+        const AudioCtx = window.AudioContext || (window as any).webkitAudioContext
+        if (AudioCtx) {
+          audioCtxRef.current = new AudioCtx()
+        }
+      }
+
+      const ctx = audioCtxRef.current
+      if (!ctx || ctx.state === 'suspended') {
+        ctx?.resume()
+      }
+
+      if (ctx) {
+        const osc = ctx.createOscillator()
+        const gain = ctx.createGain()
+
+        osc.type = 'sine'
+        osc.frequency.setValueAtTime(950, ctx.currentTime)
+        osc.frequency.exponentialRampToValueAtTime(120, ctx.currentTime + 0.04)
+
+        gain.gain.setValueAtTime(0.09, ctx.currentTime)
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.04)
+
+        osc.connect(gain)
+        gain.connect(ctx.destination)
+
+        osc.start()
+        osc.stop(ctx.currentTime + 0.05)
+      }
+    } catch (e) {
+      // Audio autoplay restrictions
+    }
+  }
+
+  // Draw the Wheel Canvas
+  const drawWheel = () => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+
+    const dpr = window.devicePixelRatio || 1
+    const rect = canvas.getBoundingClientRect()
+    canvas.width = rect.width * dpr
+    canvas.height = rect.height * dpr
+    ctx.scale(dpr, dpr)
+
+    const cx = rect.width / 2
+    const cy = rect.height / 2
+    const radius = Math.min(rect.width, rect.height) / 2 - 15
+
+    ctx.clearRect(0, 0, rect.width, rect.height)
+
+    // Empty state
+    if (activePool.length === 0) {
+      ctx.save()
+      ctx.beginPath()
+      ctx.arc(cx, cy, radius, 0, 2 * Math.PI)
+      ctx.strokeStyle = 'rgba(255,255,255,0.08)'
+      ctx.lineWidth = 4
+      ctx.stroke()
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.02)'
+      ctx.fill()
+
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.3)'
+      ctx.font = 'bold 13px var(--font-sans, Outfit, sans-serif)'
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      ctx.fillText('List Wheel Kosong, Bro!', cx, cy)
+      ctx.restore()
+      return
+    }
+
+    const sliceAngle = (2 * Math.PI) / activePool.length
+    const currentAngle = angleRef.current
+
+    // Outer Neon Ring Glow
+    ctx.save()
+    ctx.beginPath()
+    ctx.arc(cx, cy, radius + 5, 0, 2 * Math.PI)
+    ctx.strokeStyle = 'rgba(59, 130, 246, 0.15)'
+    ctx.lineWidth = 10
+    ctx.stroke()
+    ctx.restore()
+
+    // Draw Slices
+    activePool.forEach((place, i) => {
+      const startAngle = currentAngle + i * sliceAngle
+      const endAngle = startAngle + sliceAngle
+
+      ctx.save()
+
+      ctx.beginPath()
+      ctx.moveTo(cx, cy)
+      ctx.arc(cx, cy, radius, startAngle, endAngle)
+      ctx.closePath()
+
+      ctx.fillStyle = NEON_COLORS[i % NEON_COLORS.length]
+      ctx.fill()
+
+      ctx.strokeStyle = 'rgba(10, 10, 11, 0.6)'
+      ctx.lineWidth = 2
+      ctx.stroke()
+
+      ctx.beginPath()
+      ctx.translate(cx, cy)
+      const middleAngle = startAngle + sliceAngle / 2
+      ctx.rotate(middleAngle)
+
+      ctx.textAlign = 'right'
+      ctx.textBaseline = 'middle'
+      ctx.fillStyle = '#ffffff'
+
+      const fontSize = activePool.length > 15 ? 10 : activePool.length > 8 ? 12 : 13
+      ctx.font = `bold ${fontSize}px var(--font-sans, Outfit, sans-serif)`
+
+      let labelName = place.name
+      const maxLabelLen = activePool.length > 15 ? 14 : 20
+      if (labelName.length > maxLabelLen) {
+        labelName = labelName.substring(0, maxLabelLen - 2) + '..'
+      }
+
+      ctx.fillText(labelName, radius - 15, 0)
+      ctx.restore()
+    })
+
+    // Center Cap
+    ctx.save()
+    ctx.beginPath()
+    ctx.arc(cx, cy, 25, 0, 2 * Math.PI)
+
+    ctx.shadowColor = 'rgba(59, 130, 246, 0.6)'
+    ctx.shadowBlur = 10
+    ctx.fillStyle = '#111113'
+    ctx.fill()
+
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)'
+    ctx.lineWidth = 2
+    ctx.shadowBlur = 0
+    ctx.stroke()
+
+    ctx.beginPath()
+    ctx.arc(cx, cy, 8, 0, 2 * Math.PI)
+    ctx.fillStyle = '#3b82f6'
+    ctx.shadowColor = '#3b82f6'
+    ctx.shadowBlur = 10
+    ctx.fill()
+    ctx.restore()
+
+    // Physical Pointer
+    ctx.save()
+    ctx.translate(cx, cy - radius + 5)
+    ctx.rotate(pointerWiggleRef.current)
+
+    ctx.shadowColor = '#f43f5e'
+    ctx.shadowBlur = 12
+    ctx.fillStyle = '#f43f5e'
+
+    ctx.beginPath()
+    ctx.moveTo(0, 16)
+    ctx.lineTo(-11, -8)
+    ctx.lineTo(11, -8)
+    ctx.closePath()
+    ctx.fill()
+
+    ctx.fillStyle = '#ffffff'
+    ctx.beginPath()
+    ctx.moveTo(0, 14)
+    ctx.lineTo(-6, -6)
+    ctx.lineTo(6, -6)
+    ctx.closePath()
+    ctx.fill()
+
+    ctx.restore()
+  }
+
+  // Update physics
+  const updateWheelPhysics = () => {
+    if (activePool.length === 0) return
+
+    angleRef.current += velocityRef.current
+    velocityRef.current *= 0.985 // friction
+
+    pointerWiggleRef.current *= 0.85
+
+    const sliceAngle = (2 * Math.PI) / activePool.length
+    const normalizedAngle = (-Math.PI / 2 - angleRef.current) % (2 * Math.PI)
+    const positiveAngle = normalizedAngle < 0 ? normalizedAngle + 2 * Math.PI : normalizedAngle
+    const currentIndex = Math.floor(positiveAngle / sliceAngle) % activePool.length
+
+    if (currentIndex !== lastIndexRef.current && velocityRef.current > 0.005) {
+      lastIndexRef.current = currentIndex
+      pointerWiggleRef.current = 0.28
+      playTickSound()
+    }
+
+    drawWheel()
+
+    if (velocityRef.current > 0.001) {
+      requestRef.current = requestAnimationFrame(updateWheelPhysics)
+    } else {
+      setIsSpinning(false)
+      velocityRef.current = 0
+
+      const winnerPlace = activePool[currentIndex]
+      setWinner(winnerPlace)
+      setShowWinnerModal(true)
+
+      // AUTOMATICALLY exclude the place in this session so it cannot be selected again!
+      setPickedIndices(prev => {
+        const next = new Set(prev)
+        next.add(winnerPlace.index)
+        return next
+      })
+
+      toast.success(`Horee! Ketemu tempat makannya: ${winnerPlace.name}!`, {
+        icon: '🎉',
+        duration: 4000
+      })
+    }
+  }
+
+  // Spin
+  const startSpin = () => {
+    if (isSpinning || activePool.length === 0) return
+
+    setIsSpinning(true)
+    setWinner(null)
+
+    velocityRef.current = 0.25 + Math.random() * 0.18
+    lastIndexRef.current = -1
+
+    if (requestRef.current) cancelAnimationFrame(requestRef.current)
+    requestRef.current = requestAnimationFrame(updateWheelPhysics)
+  }
+
+  useEffect(() => {
+    drawWheel()
+    return () => {
+      if (requestRef.current) cancelAnimationFrame(requestRef.current)
+    }
+  }, [activePool])
+
+  useEffect(() => {
+    const handleResize = () => drawWheel()
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [activePool])
+
+  // Filter & Search
+  const filteredPlaces = places.filter(p => {
+    const matchesFilter = filter === 'all' || (filter === 'visited' && !!p.visited) || (filter === 'unvisited' && !p.visited)
+
+    const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase()) || p.city.toLowerCase().includes(search.toLowerCase())
+
+    return matchesFilter && matchesSearch
+  })
+
+  // Group helpers
+  const handleToggleSelectAll = (checked: boolean) => {
+    const currentFilteredIndices = filteredPlaces.map(p => p.index)
+    const newSelected = new Set(selectedIndices)
+
+    currentFilteredIndices.forEach(idx => {
+      if (checked) {
+        newSelected.add(idx)
+      } else {
+        newSelected.delete(idx)
+      }
+    })
+
+    setSelectedIndices(newSelected)
+  }
+
+  const handleTogglePlace = (index: number) => {
+    const newSelected = new Set(selectedIndices)
+    if (newSelected.has(index)) {
+      newSelected.delete(index)
+    } else {
+      newSelected.add(index)
+    }
+    setSelectedIndices(newSelected)
+  }
+
+  const handleResetPicked = () => {
+    setPickedIndices(new Set())
+    toast.success('Semua tempat yang dicoret udah dikembaliin ke wheel, bro!')
+  }
+
+  const allFilteredSelected = filteredPlaces.length > 0 && filteredPlaces.every(p => selectedIndices.has(p.index))
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center p-8 min-h-[460px] rounded-2xl bg-zinc-950/20 border border-zinc-800/40 glass relative overflow-hidden select-none animate-fade-in">
+        <div className="absolute -top-24 -left-24 w-48 h-48 rounded-full bg-blue-500/10 blur-[60px]" />
+        <div className="absolute -bottom-24 -right-24 w-48 h-48 rounded-full bg-violet-500/10 blur-[60px]" />
+
+        <div className="relative flex flex-col items-center gap-6 z-10">
+          {/* Animated Spinner with Neon Glow */}
+          <div className="relative w-20 h-20 flex items-center justify-center">
+            {/* outer glowing pulse ring */}
+            <div className="absolute inset-0 rounded-full border-2 border-dashed border-violet-500/20 animate-spin [animation-duration:12s]" />
+            {/* inner spinning loader */}
+            <div className="absolute w-14 h-14 rounded-full border-2 border-transparent border-t-blue-500 border-r-blue-500/40 animate-spin [animation-duration:1.2s]" />
+            {/* center glowing core */}
+            <div className="w-5 h-5 rounded-full bg-gradient-to-tr from-blue-500 to-violet-500 animate-pulse-glow shadow-[0_0_15px_rgba(139,92,246,0.6)]" />
+          </div>
+
+          <div className="flex flex-col gap-1.5 text-center">
+            <h3 className="text-sm font-extrabold uppercase tracking-[0.2em] text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-violet-400">
+              Menghubungkan
+            </h3>
+            <p className="text-xs text-zinc-400 max-w-[240px] leading-relaxed">
+              Sedang mengambil list tempat kuliner dari Google Sheets...
+            </p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex flex-col gap-6 animate-fade-up">
+      {/* 🎡 WHEEL SECTION ─── */}
+      <div className="flex flex-col items-center gap-5 p-5 rounded-2xl bg-zinc-950/20 border border-zinc-800/40 glass relative overflow-hidden">
+        <div className="absolute -top-24 -left-24 w-48 h-48 rounded-full bg-blue-500/10 blur-[60px]" />
+        <div className="absolute -bottom-24 -right-24 w-48 h-48 rounded-full bg-violet-500/10 blur-[60px]" />
+
+        <div className="w-full flex items-center justify-between z-10">
+          <Badge variant="outline" className="border-blue-500/25 bg-blue-500/5 text-[11px] text-blue-400">
+            <Sparkles className="w-3 h-3 mr-1" />
+            {activePool.length} Tempat Siap Diputar
+          </Badge>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setSoundEnabled(!soundEnabled)}
+            className="w-8 h-8 text-zinc-400 hover:text-zinc-200"
+            title={soundEnabled ? 'Matikan Suara' : 'Aktifkan Suara'}
+          >
+            {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4 text-zinc-500" />}
+          </Button>
+        </div>
+
+        {/* Dynamic Interactive Wheel Canvas */}
+        <div className="relative w-[290px] h-[290px] md:w-[310px] md:h-[310px] flex items-center justify-center select-none z-10">
+          <canvas
+            ref={canvasRef}
+            className="w-full h-full cursor-pointer touch-none"
+            style={{ width: '100%', height: '100%' }}
+            onClick={startSpin}
+          />
+          <div className="absolute inset-0 rounded-full border border-zinc-800/40 pointer-events-none shadow-[inset_0_0_20px_rgba(0,0,0,0.8)]" />
+        </div>
+
+        <Button
+          onClick={startSpin}
+          disabled={isSpinning || activePool.length === 0}
+          className="w-full max-w-[200px] bg-gradient-to-r from-blue-600 to-violet-600 hover:from-blue-500 hover:to-violet-500 text-white font-bold py-5 rounded-xl glow-primary transition-all duration-300 z-10 flex items-center justify-center gap-2"
+        >
+          <Play className="w-4 h-4 fill-white" />
+          {isSpinning ? 'SPINNING...' : 'SPIN THE WHEEL'}
+        </Button>
+      </div>
+
+      {/* 🎛️ CONTROL & POOL LIST SECTION ─── */}
+      <div className="p-5 rounded-2xl bg-zinc-950/20 border border-zinc-800/40 glass flex flex-col gap-4">
+        <div className="flex flex-col gap-2">
+          <h2 className="text-sm font-semibold tracking-wide text-zinc-200">PILIHAN TEMPAT MAKAN</h2>
+          <p className="text-[11px] text-zinc-400 leading-relaxed">
+            Centang tempat yang mau dimasukin ke wheel. Tempat yang udah kepilih bakal dicoret otomatis biar adil.
+          </p>
+        </div>
+
+        {/* Quick Filters */}
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setFilter('unvisited')}
+            className={`flex-1 text-[11px] h-8 rounded-lg border-zinc-800/80 transition-all ${
+              filter === 'unvisited' ? 'bg-zinc-800 text-zinc-100 border-zinc-700' : 'text-zinc-400 hover:text-zinc-200'
+            }`}
+          >
+            Belum Dikunjungi
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setFilter('visited')}
+            className={`flex-1 text-[11px] h-8 rounded-lg border-zinc-800/80 transition-all ${
+              filter === 'visited' ? 'bg-zinc-800 text-zinc-100 border-zinc-700' : 'text-zinc-400 hover:text-zinc-200'
+            }`}
+          >
+            Pernah Dikunjungi
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setFilter('all')}
+            className={`flex-1 text-[11px] h-8 rounded-lg border-zinc-800/80 transition-all ${
+              filter === 'all' ? 'bg-zinc-800 text-zinc-100 border-zinc-700' : 'text-zinc-400 hover:text-zinc-200'
+            }`}
+          >
+            Semua Tempat
+          </Button>
+        </div>
+
+        {/* Search & Actions Bar */}
+        <div className="flex gap-2 items-center">
+          <div className="relative flex-1">
+            <input
+              type="text"
+              placeholder="Cari tempat atau kota..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="w-full text-xs bg-zinc-950/50 border border-zinc-800/80 rounded-xl px-3 py-2 text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-zinc-700 transition-colors"
+            />
+            {search && (
+              <button onClick={() => setSearch('')} className="absolute right-3 top-2.5 text-zinc-500 hover:text-zinc-300">
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+
+          {pickedIndices.size > 0 && (
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={handleResetPicked}
+              className="w-8 h-8 rounded-xl border-zinc-800/80 text-zinc-400 hover:text-zinc-200 shrink-0"
+              title="Reset yang Coret"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+            </Button>
+          )}
+        </div>
+
+        <Separator className="bg-zinc-800/40" />
+
+        {/* Batch Selection Action using Shadcn Checkbox */}
+        <div className="flex items-center justify-between text-xs px-1 select-none">
+          <div className="flex items-center gap-2">
+            <Checkbox
+              id="select-all-places"
+              checked={allFilteredSelected}
+              disabled={isSpinning}
+              onCheckedChange={checked => handleToggleSelectAll(!!checked)}
+              className="border-zinc-700/60"
+            />
+            <label htmlFor="select-all-places" className="text-zinc-400 hover:text-zinc-200 font-medium cursor-pointer transition-colors">
+              Pilih Semua ({filteredPlaces.length})
+            </label>
+          </div>
+
+          {pickedIndices.size > 0 && (
+            <span className="text-[10px] text-zinc-500 uppercase tracking-wider font-semibold">{pickedIndices.size} Dicoret</span>
+          )}
+        </div>
+
+        {/* Scrollable list of places */}
+        <ScrollArea className="h-[210px] pr-1">
+          {loading ? (
+            <div className="flex flex-col items-center justify-center h-full gap-2 text-zinc-500 text-xs">
+              <span className="w-5 h-5 rounded-full border-2 border-zinc-700 border-t-blue-500 animate-spin" />
+              Loading list kuliner...
+            </div>
+          ) : filteredPlaces.length === 0 ? (
+            <div className="flex items-center justify-center h-[180px] text-zinc-600 text-xs font-medium">
+              Nggak nemu tempat yang pas, bro.
+            </div>
+          ) : (
+            <div className="flex flex-col gap-1.5 pb-2">
+              {filteredPlaces.map(place => {
+                const isSelected = selectedIndices.has(place.index)
+                const isPicked = pickedIndices.has(place.index)
+
+                return (
+                  <div
+                    key={place.index}
+                    onClick={() => !isSpinning && !isPicked && handleTogglePlace(place.index)}
+                    className={`flex items-center justify-between p-2.5 rounded-xl border transition-all select-none ${
+                      isPicked
+                        ? 'bg-zinc-950/20 border-dashed border-zinc-900 text-zinc-600'
+                        : isSelected
+                          ? 'bg-zinc-900/40 border-zinc-800/80 text-zinc-200 cursor-pointer'
+                          : 'bg-transparent border-transparent text-zinc-400 hover:text-zinc-300 cursor-pointer'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                      <div className="shrink-0" onClick={e => e.stopPropagation()}>
+                        <Checkbox
+                          checked={isSelected && !isPicked}
+                          disabled={isPicked || isSpinning}
+                          onCheckedChange={() => handleTogglePlace(place.index)}
+                          className="border-zinc-700/60"
+                        />
+                      </div>
+                      <div className={`min-w-0 ${isPicked ? 'line-through' : ''}`}>
+                        <p className="text-xs font-semibold truncate leading-none mb-1">{place.name}</p>
+                        <p className="text-[10px] text-zinc-500 font-medium">{place.city}</p>
+                      </div>
+                    </div>
+
+                    {place.visited && (
+                      <Badge
+                        variant="outline"
+                        className="border-green-500/20 text-green-500/70 text-[9px] bg-green-500/5 py-0 px-1.5 shrink-0 ml-2"
+                      >
+                        Pernah
+                      </Badge>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </ScrollArea>
+      </div>
+
+      {/* 🏆 SHADCN WINNER CELEBRATION DIALOG MODAL ─── */}
+      <Dialog open={showWinnerModal} onOpenChange={setShowWinnerModal}>
+        <DialogContent className="bg-zinc-950/95 border border-zinc-800/80 glass text-zinc-200 p-6 flex flex-col items-center gap-5 text-center max-w-sm rounded-2xl shadow-2xl select-none">
+          <DialogHeader className="flex flex-col items-center gap-1.5 w-full">
+            <div className="w-16 h-16 rounded-2xl bg-violet-600/10 flex items-center justify-center border border-violet-500/35 glow-primary shadow-[0_0_24px_rgba(139,92,246,0.3)] mb-2">
+              <Award className="w-8 h-8 text-violet-400 animate-bounce" />
+            </div>
+            <DialogTitle className="text-[10px] uppercase tracking-[0.25em] text-violet-400 font-bold leading-none">
+              TEMPAT PILIHAN WHEEL
+            </DialogTitle>
+            <DialogDescription className="text-xl font-bold tracking-tight text-white px-2 mt-1 leading-snug">
+              {winner?.name}
+            </DialogDescription>
+          </DialogHeader>
+
+          {winner && (
+            <>
+              <p className="text-xs text-zinc-400 flex items-center justify-center gap-1 -mt-3">
+                <MapPin className="w-3 h-3 text-zinc-500" />
+                {winner.city}
+              </p>
+
+              {/* Travel metrics in winner popup */}
+              {(winner.dist || winner.time) && (
+                <div className="grid grid-cols-2 gap-2 w-full p-3 bg-zinc-900/60 rounded-xl border border-zinc-800/40 text-left">
+                  {winner.dist && (
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-[9px] uppercase tracking-wider text-zinc-500 font-semibold">Jarak</span>
+                      <span className="text-xs font-bold text-zinc-200 flex items-center gap-1">
+                        <Compass className="w-3.5 h-3.5 text-blue-400" />
+                        {winner.dist} km
+                      </span>
+                    </div>
+                  )}
+                  {winner.time && (
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-[9px] uppercase tracking-wider text-zinc-500 font-semibold">Waktu</span>
+                      <span className="text-xs font-bold text-zinc-200 flex items-center gap-1">
+                        <Clock className="w-3.5 h-3.5 text-violet-400" />
+                        {winner.time} mnt
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Action buttons */}
+              <div className="flex flex-col gap-2.5 w-full mt-2">
+                <a
+                  href={winner.link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-violet-500 text-white font-semibold py-3 rounded-xl transition-all shadow-[0_4px_16px_rgba(59,130,246,0.25)] flex items-center justify-center gap-2 text-xs"
+                >
+                  <MapPin className="w-4 h-4 fill-white text-blue-600" />
+                  OPEN IN GOOGLE MAPS
+                </a>
+
+                <Button
+                  onClick={() => setShowWinnerModal(false)}
+                  className="w-full bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 text-zinc-200 font-semibold py-3 rounded-xl transition-all text-xs"
+                >
+                  OK, MANTAP!
+                </Button>
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
+  )
+}

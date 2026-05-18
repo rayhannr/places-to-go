@@ -1,11 +1,11 @@
 'use client'
 
 import { ChefHat, MapPin } from 'lucide-react'
-import { Badge } from '@/components/ui/badge'
 import { ThemeToggle } from '@/components/theme-toggle'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 
-export function ChatHeader({ onLocationClick }: { onLocationClick?: () => void }) {
+export function ChatHeader({ onLocationClick }: { onLocationClick: () => void }) {
   return (
     <header className="flex items-center justify-between mb-6 animate-fade-up shrink-0">
       <div className="flex items-center gap-3">
@@ -18,17 +18,16 @@ export function ChatHeader({ onLocationClick }: { onLocationClick?: () => void }
         </div>
       </div>
       <div className="flex items-center gap-2">
-        {onLocationClick && (
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={onLocationClick}
-            className="w-9 h-9 border-zinc-700/50 hover:border-blue-500/50 hover:text-blue-400 group transition-all duration-300"
-            title="Share Current Location"
-          >
-            <MapPin className="w-4 h-4 group-hover:scale-110 transition-transform" />
-          </Button>
-        )}
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={onLocationClick}
+          className="w-9 h-9 border-zinc-700/50 hover:border-blue-500/50 hover:text-blue-400 group transition-all duration-300"
+          title="Share Current Location"
+        >
+          <MapPin className="w-4 h-4 group-hover:scale-110 transition-transform" />
+        </Button>
+
         <ThemeToggle />
         <Badge
           variant="outline"
