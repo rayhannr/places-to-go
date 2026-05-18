@@ -82,7 +82,8 @@ bot.on('message:text', async ctx => {
       system: AI_CONFIG.systemPrompt + locationContext + userIdContext + dateContext,
       messages,
       tools: wrappedTools as any,
-      stopWhen: stepCountIs(AI_CONFIG.maxSteps)
+      stopWhen: stepCountIs(AI_CONFIG.maxSteps),
+      providerOptions: { mistral: { parallelToolCalls: false } }
     })
 
     const text = result.text

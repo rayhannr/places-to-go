@@ -1,8 +1,8 @@
 import { mistral } from '@ai-sdk/mistral'
 import { streamText, convertToModelMessages, stepCountIs, type ToolSet } from 'ai'
+import { AI_CONFIG } from '@/lib/ai/config'
 import { tools } from '@/lib/ai/tools'
 import { wrapToolsWithCache } from '@/lib/ai/tools/dedupe'
-import { AI_CONFIG } from '@/lib/ai/config'
 
 export const maxDuration = 60
 
@@ -13,10 +13,8 @@ export async function POST(req: Request) {
     const userLocation = lastMessage?.metadata?.userLocation as { lat: number; lng: number } | undefined
     const userId = lastMessage?.metadata?.userId as string | undefined
 
-    const locationContext = userLocation 
-      ? `\n\n[USER_CURRENT_LOCATION: ${userLocation.lat}, ${userLocation.lng}]` 
-      : ''
-    
+    const locationContext = userLocation ? `\n\n[USER_CURRENT_LOCATION: ${userLocation.lat}, ${userLocation.lng}]` : ''
+
     const userIdContext = userId ? `\n\n[USER_ID: ${userId}]` : ''
     const dateContext = `\n\n[CURRENT_DATE: ${new Date().toISOString()}]`
 
@@ -28,7 +26,8 @@ export async function POST(req: Request) {
       messages: await convertToModelMessages(messages),
       tools: wrappedTools as ToolSet,
       stopWhen: stepCountIs(AI_CONFIG.maxSteps),
-      system: AI_CONFIG.systemPrompt + locationContext + userIdContext + dateContext
+      system: AI_CONFIG.systemPrompt + locationContext + userIdContext + dateContext,
+      providerOptions: { mistral: { parallelToolCalls: false } }
     })
 
     return result.toUIMessageStreamResponse()
