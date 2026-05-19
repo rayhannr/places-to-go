@@ -140,7 +140,16 @@ export function MessageBubble({ message }: MessageBubbleProps) {
               if (part.type === 'text') {
                 return (
                   <div key={i} className="markdown">
-                    <ReactMarkdown remarkPlugins={[remarkGfm as any]}>{(part as { type: 'text'; text: string }).text}</ReactMarkdown>
+                    <ReactMarkdown
+                      remarkPlugins={[remarkGfm as any]}
+                      components={{
+                        a: ({ node, ...props }) => (
+                          <a target="_blank" rel="noopener noreferrer" {...props} />
+                        )
+                      }}
+                    >
+                      {(part as { type: 'text'; text: string }).text}
+                    </ReactMarkdown>
                   </div>
                 )
               }
@@ -151,7 +160,16 @@ export function MessageBubble({ message }: MessageBubbleProps) {
             })
           ) : (
             <div className="markdown">
-              <ReactMarkdown remarkPlugins={[remarkGfm as any]}>{message.content ?? ''}</ReactMarkdown>
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm as any]}
+                components={{
+                  a: ({ node, ...props }) => (
+                    <a target="_blank" rel="noopener noreferrer" {...props} />
+                  )
+                }}
+              >
+                {message.content ?? ''}
+              </ReactMarkdown>
             </div>
           )}
         </div>
