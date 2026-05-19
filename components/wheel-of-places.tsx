@@ -11,6 +11,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
 import { cn } from '@/lib/utils'
+import { useTheme } from 'next-themes'
+
 
 interface Place {
   name: string
@@ -33,6 +35,7 @@ const NEON_COLORS = [
 ]
 
 export function WheelOfPlaces() {
+  const { resolvedTheme } = useTheme()
   const [places, setPlaces] = useState<Place[]>([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<'unvisited' | 'visited' | 'all'>('unvisited')
@@ -135,7 +138,7 @@ export function WheelOfPlaces() {
     const ctx = canvas.getContext('2d')
     if (!ctx) return
 
-    const isDark = typeof document !== 'undefined' && document.documentElement.classList.contains('dark')
+    const isDark = resolvedTheme ? resolvedTheme === 'dark' : (typeof document !== 'undefined' && document.documentElement.classList.contains('dark'))
 
     const dpr = window.devicePixelRatio || 1
     const rect = canvas.getBoundingClientRect()
@@ -343,7 +346,7 @@ export function WheelOfPlaces() {
     return () => {
       if (requestRef.current) cancelAnimationFrame(requestRef.current)
     }
-  }, [activePool])
+  }, [activePool, resolvedTheme])
 
   useEffect(() => {
     const handleResize = () => drawWheel()

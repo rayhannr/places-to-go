@@ -2,7 +2,7 @@
 
 import { useChat } from '@ai-sdk/react'
 import { DefaultChatTransport } from 'ai'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { ChatHeader } from '@/components/chat/chat-header'
 import { ChatInput } from '@/components/chat/chat-input'
@@ -14,10 +14,35 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { WheelOfPlaces } from '@/components/wheel-of-places'
 import { Message } from '@/lib/types'
 import { cn } from '@/lib/utils'
+import { Loader2 } from 'lucide-react'
 
 export default function ChatPage() {
   const bottomRef = useRef<HTMLDivElement>(null)
   const coordsRef = useRef<{ lat: number; lng: number } | null>(null)
+  const [mounted, setMounted] = useState(false)
+  const [activeTab, setActiveTab] = useState<'chat' | 'wheel'>('chat')
+
+  // Sync tab from query param on mount
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search)
+      const tabParam = params.get('tab')
+      if (tabParam === 'chat' || tabParam === 'wheel') {
+        setActiveTab(tabParam)
+      }
+    }
+    setMounted(true)
+  }, [])
+
+  // Update query param when tab changes
+  const handleTabChange = (value: string) => {
+    setActiveTab(value as 'chat' | 'wheel')
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search)
+      params.set('tab', value)
+      window.history.replaceState(null, '', `${window.location.pathname}?${params.toString()}`)
+    }
+  }
 
   const handleRequestLocation = () => {
     if (typeof window !== 'undefined' && navigator.geolocation) {
@@ -82,7 +107,7 @@ export default function ChatPage() {
     <main className="flex flex-col h-screen max-w-2xl mx-auto w-full px-4 py-5 md:px-6 md:py-6">
       <ChatHeader onLocationClick={handleRequestLocation} />
 
-      <Tabs defaultValue="chat" className="flex flex-col flex-1 min-h-0">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="flex flex-col flex-1 min-h-0">
         <TabsList className="grid grid-cols-2 h-10 p-1 rounded-xl mb-5 max-w-xs mx-auto w-full glass shrink-0 select-none">
           <TabsTrigger value="chat" className={getTriggerClass('blue')}>
             💬 Roast Chat
@@ -92,36 +117,44 @@ export default function ChatPage() {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="chat" className="flex flex-col flex-1 min-h-0 outline-none">
-          {/* ── Messages ── */}
-          <ScrollArea className="flex-1 mb-4 pr-1">
-            <div className="flex flex-col gap-5 pb-2">
-              {/* Empty state */}
-              {typedMessages.length === 0 && <EmptyState onAction={handleSendMessage} disabled={isLoading} />}
+        {mounted ? (
+          <>
+            <TabsContent value="chat" className="flex flex-col flex-1 min-h-0 outline-none animate-fade-in">
+              {/* ── Messages ── */}
+              <ScrollArea className="flex-1 mb-4 pr-1">
+                <div className="flex flex-col gap-5 pb-2">
+                  {/* Empty state */}
+                  {typedMessages.length === 0 && <EmptyState onAction={handleSendMessage} disabled={isLoading} />}
 
-              {/* Message list */}
-              {typedMessages.map(m => (
-                <MessageBubble key={m.id} message={m} />
-              ))}
+                  {/* Message list */}
+                  {typedMessages.map(m => (
+                    <MessageBubble key={m.id} message={m} />
+                  ))}
 
-              {/* Typing indicator */}
-              {showTyping && <TypingIndicator />}
+                  {/* Typing indicator */}
+                  {showTyping && <TypingIndicator />}
 
-              <div ref={bottomRef} />
-            </div>
-          </ScrollArea>
+                  <div ref={bottomRef} />
+                </div>
+              </ScrollArea>
 
-          {/* ── Input bar ── */}
-          <ChatInput onSendMessage={handleSendMessage} isLoading={isLoading} />
-        </TabsContent>
+              {/* ── Input bar ── */}
+              <ChatInput onSendMessage={handleSendMessage} isLoading={isLoading} />
+            </TabsContent>
 
-        <TabsContent value="wheel" className="flex flex-col flex-1 min-h-0 outline-none">
-          <ScrollArea className="flex-1 mb-1 pr-1">
-            <div className="pb-3">
-              <WheelOfPlaces />
-            </div>
-          </ScrollArea>
-        </TabsContent>
+            <TabsContent value="wheel" className="flex flex-col flex-1 min-h-0 outline-none animate-fade-in">
+              <ScrollArea className="flex-1 mb-1 pr-1">
+                <div className="pb-3">
+                  <WheelOfPlaces />
+                </div>
+              </ScrollArea>
+            </TabsContent>
+          </>
+        ) : (
+          <div className="flex-1 flex items-center justify-center min-h-[300px]">
+            <Loader2 className="w-8 h-8 animate-spin text-primary/60" />
+          </div>
+        )}
       </Tabs>
 
       <p className="text-[10px] text-center mt-3 text-muted-foreground/40 uppercase tracking-[0.2em] shrink-0">Powered by Mistral AI</p>
