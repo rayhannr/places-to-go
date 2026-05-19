@@ -9,19 +9,19 @@ const QUICK_ACTIONS = [
     id: 'recommend',
     label: 'Show me some recommendations',
     icon: List,
-    color: 'text-blue-400'
+    color: 'text-blue-500 dark:text-blue-400'
   },
   {
     id: 'add',
     label: 'I want to add a new place',
     icon: Plus,
-    color: 'text-violet-400'
+    color: 'text-violet-500 dark:text-violet-400'
   },
   {
     id: 'nearby',
     label: "What's nearby Sleman?",
     icon: MapPin,
-    color: 'text-cyan-400'
+    color: 'text-cyan-500 dark:text-cyan-400'
   }
 ]
 
@@ -34,7 +34,7 @@ export function EmptyState({ onAction, disabled }: EmptyStateProps) {
   return (
     <div className="flex flex-col items-center justify-center min-h-[50vh] text-center px-6 animate-fade-up">
       <div className="w-14 h-14 rounded-2xl glass flex items-center justify-center mb-4 glow-primary">
-        <Sparkles className="w-7 h-7 text-blue-400" />
+        <Sparkles className="w-7 h-7 text-blue-500 dark:text-blue-400" />
       </div>
       <h2 className="text-lg font-semibold mb-1 text-foreground">How can I help?</h2>
       <p className="text-sm text-muted-foreground max-w-xs mb-8">Ask me for food recommendations or add a new place to your tracker.</p>

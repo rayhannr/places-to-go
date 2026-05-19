@@ -111,3 +111,15 @@ graph TD
 - [ ] **Interactive Maps**: Embed a map view to visualize all saved locations.
 - [ ] **Export Options**: Export the current list to CSV/Excel.
 - [ ] **User Authentication**: Support for personal Google Sheets per user.
+
+## 8. UI Theme & Design Guidelines
+To maintain visual excellence and premium pair-programming output, all agents MUST follow these theme and styling guidelines strictly:
+- **Theme-Aware Glassmorphism**:
+    - NEVER hardcode dark or muddy gray colors (e.g., `bg-zinc-950/20`, `border-zinc-800/40`) directly on dynamic glass panels.
+    - Always use the `.glass` utility class defined in `app/globals.css`, which dynamically maps `--glass-bg`, `--glass-border`, and `--glass-shadow` using system CSS variables.
+- **Contrast & Hierarchy**:
+    - **Light Theme**: Avoid using neon colors (`-400` like `text-blue-400`, `text-violet-400`, `text-cyan-400`) directly on white backgrounds. Map active typography/icons dynamically using theme states (e.g., `text-blue-600 dark:text-blue-400` and `bg-blue-50 dark:bg-blue-500/10`).
+    - **Solid Panels & Cards**: In light mode, sub-panels (like metrics) should use semi-transparent white backgrounds (`bg-white/70`) with soft borders (`border-black/[0.04]`), and secondary buttons should use crisp outlined borders (`border-black/[0.08] hover:bg-black/[0.02]`) rather than solid gray blocks.
+- **Overlay & Dialog Modals**:
+    - Always ensure overlays/backdrops behind glass elements are theme-aware (e.g., `bg-black/20 dark:bg-black/60` inside `DialogOverlay`) so that frosted glass cards in light mode remain bright and readable rather than looking muddy due to heavy black backgrounds bleeding through.
+

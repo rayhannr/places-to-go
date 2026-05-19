@@ -13,6 +13,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { WheelOfPlaces } from '@/components/wheel-of-places'
 import { Message } from '@/lib/types'
+import { cn } from '@/lib/utils'
 
 export default function ChatPage() {
   const bottomRef = useRef<HTMLDivElement>(null)
@@ -69,12 +70,12 @@ export default function ChatPage() {
 
   // Helper to keep tab triggers completely DRY
   const getTriggerClass = (tabColor: 'blue' | 'violet') => {
-    const activeStyles =
+    return cn(
+      'h-full py-0 text-[10.5px] font-black uppercase tracking-wider flex items-center justify-center transition-all duration-200',
       tabColor === 'blue'
-        ? 'data-active:bg-blue-500/10 data-active:border-blue-500/30 data-active:text-blue-400 data-active:shadow-[0_0_12px_rgba(59,130,246,0.18)]'
-        : 'data-active:bg-violet-500/10 data-active:border-violet-500/30 data-active:text-violet-400 data-active:shadow-[0_0_12px_rgba(139,92,246,0.18)]'
-
-    return `py-1.5 text-[10px] font-extrabold uppercase tracking-wider ${activeStyles}`
+        ? 'data-active:bg-blue-50 dark:data-active:bg-blue-500/10 data-active:border-blue-200 dark:data-active:border-blue-500/30 data-active:text-blue-600 dark:data-active:text-blue-400 data-active:shadow-[0_2px_8px_rgba(59,130,246,0.08)] dark:data-active:shadow-[0_0_12px_rgba(59,130,246,0.18)]'
+        : 'data-active:bg-violet-50 dark:data-active:bg-violet-500/10 data-active:border-violet-200 dark:data-active:border-violet-500/30 data-active:text-violet-600 dark:data-active:text-violet-400 data-active:shadow-[0_2px_8px_rgba(139,92,246,0.08)] dark:data-active:shadow-[0_0_12px_rgba(139,92,246,0.18)]'
+    )
   }
 
   return (
@@ -82,7 +83,7 @@ export default function ChatPage() {
       <ChatHeader onLocationClick={handleRequestLocation} />
 
       <Tabs defaultValue="chat" className="flex flex-col flex-1 min-h-0">
-        <TabsList className="grid grid-cols-2 p-1 bg-zinc-950/20 border border-zinc-800/40 rounded-xl mb-5 max-w-xs mx-auto w-full glass shrink-0 select-none">
+        <TabsList className="grid grid-cols-2 h-10 p-1 rounded-xl mb-5 max-w-xs mx-auto w-full glass shrink-0 select-none">
           <TabsTrigger value="chat" className={getTriggerClass('blue')}>
             💬 Roast Chat
           </TabsTrigger>
