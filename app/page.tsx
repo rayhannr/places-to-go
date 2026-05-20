@@ -1,5 +1,6 @@
 'use client'
 
+import { useQueryClient } from '@tanstack/react-query'
 import { useChat } from '@ai-sdk/react'
 import { DefaultChatTransport } from 'ai'
 import { useEffect, useRef, useState } from 'react'
@@ -16,11 +17,15 @@ import { Message } from '@/lib/types'
 import { cn } from '@/lib/utils'
 import { Loader2 } from 'lucide-react'
 
+// Tools that mutate the Google Sheets data — only these warrant a cache invalidation
+const MUTATING_TOOLS = new Set(['add_place', 'visit_place', 'delete_place'])
+
 export default function ChatPage() {
   const bottomRef = useRef<HTMLDivElement>(null)
   const coordsRef = useRef<{ lat: number; lng: number } | null>(null)
   const [mounted, setMounted] = useState(false)
   const [activeTab, setActiveTab] = useState<'chat' | 'wheel'>('chat')
+  const queryClient = useQueryClient()
 
   // Sync tab from query param on mount
   useEffect(() => {
@@ -91,6 +96,29 @@ export default function ChatPage() {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, isLoading])
 
+  // ── Smart cache invalidation ──────────────────────────────────────────────
+  // Track the previous loading state so we can detect the transition
+  // from "loading" → "ready", which signals the AI turn just finished.
+  const wasLoadingRef = useRef(false)
+
+  useEffect(() => {
+    const justFinished = wasLoadingRef.current && !isLoading
+
+    if (justFinished) {
+      // Find the last assistant message and check if it used any mutating tools
+      const lastAssistant = [...typedMessages].reverse().find(m => m.role === 'assistant')
+      const usedMutatingTool = lastAssistant?.parts?.some(
+        part => part.type.startsWith('tool-') && MUTATING_TOOLS.has(part.type.replace('tool-', ''))
+      )
+
+      if (usedMutatingTool) {
+        queryClient.invalidateQueries({ queryKey: ['places'] })
+      }
+    }
+
+    wasLoadingRef.current = isLoading
+  }, [isLoading, typedMessages, queryClient])
+
   const showTyping = isLoading && status !== 'streaming'
 
   // Helper to keep tab triggers completely DRY
@@ -156,8 +184,6 @@ export default function ChatPage() {
           </div>
         )}
       </Tabs>
-
-      <p className="text-[10px] text-center mt-3 text-muted-foreground/40 uppercase tracking-[0.2em] shrink-0">Powered by Mistral AI</p>
     </main>
   )
 }

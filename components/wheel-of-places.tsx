@@ -1,5 +1,6 @@
 'use client'
 
+import { useQuery } from '@tanstack/react-query'
 import axios from 'axios'
 import { Volume2, VolumeX, RotateCcw, Sparkles, MapPin, Play, Award, Clock, Compass, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
@@ -34,10 +35,13 @@ const NEON_COLORS = [
   '#eab308' // Neon Yellow
 ]
 
+async function fetchPlaces(): Promise<Place[]> {
+  const res = await axios.get<Place[]>('/api/places')
+  return res.data
+}
+
 export function WheelOfPlaces() {
   const { resolvedTheme } = useTheme()
-  const [places, setPlaces] = useState<Place[]>([])
-  const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<'unvisited' | 'visited' | 'all'>('unvisited')
   const [search, setSearch] = useState('')
   const [soundEnabled, setSoundEnabled] = useState(true)
@@ -63,29 +67,38 @@ export function WheelOfPlaces() {
   // Audio Context Ref
   const audioCtxRef = useRef<AudioContext | null>(null)
 
-  // Fetch places on load
-  const fetchPlaces = async () => {
-    try {
-      setLoading(true)
-      const res = await axios.get<Place[]>('/api/places')
-      const data = res.data
-      setPlaces(data)
+  // ── React Query data fetching ──────────────────────────────────────────────
+  const { data: places = [], isLoading, isError } = useQuery<Place[]>({
+    queryKey: ['places'],
+    queryFn: fetchPlaces,
+  })
 
-      // Default: Check all places that match the initial filter
-      const initialPool = data.filter((p: Place) => !p.visited)
-      setSelectedIndices(new Set(initialPool.map((p: Place) => p.index)))
-      setPickedIndices(new Set())
-    } catch (err: any) {
-      const errMsg = err.response?.data?.error || err.message || 'Gagal load data, bro.'
-      toast.error(errMsg)
-    } finally {
-      setLoading(false)
-    }
-  }
-
+  // Show error toast if the fetch fails
   useEffect(() => {
-    fetchPlaces()
-  }, [])
+    if (isError) {
+      toast.error('Gagal load data tempat makan, bro.')
+    }
+  }, [isError])
+
+  // Sync selectedIndices with newly fetched data — non-destructively.
+  // Only auto-select indices that are brand new (not seen before), keeping
+  // any existing manual de-selections intact.
+  const seenIndicesRef = useRef<Set<number>>(new Set())
+  useEffect(() => {
+    if (places.length === 0) return
+    const newlyAdded = places.filter(p => !seenIndicesRef.current.has(p.index))
+    if (newlyAdded.length === 0) return
+
+    setSelectedIndices(prev => {
+      const next = new Set(prev)
+      // Auto-select only unvisited new places
+      newlyAdded.forEach(p => {
+        if (!p.visited) next.add(p.index)
+      })
+      return next
+    })
+    newlyAdded.forEach(p => seenIndicesRef.current.add(p.index))
+  }, [places])
 
   // Sync active pool based on selected indices and picked indices
   useEffect(() => {
@@ -280,7 +293,7 @@ export function WheelOfPlaces() {
     if (activePool.length === 0) return
 
     angleRef.current += velocityRef.current
-    
+
     // Snappy dynamic friction tuned for a perfect 1.2 second total spin duration
     if (velocityRef.current > 0.08) {
       velocityRef.current *= 0.95
@@ -396,7 +409,7 @@ export function WheelOfPlaces() {
 
   const allFilteredSelected = filteredPlaces.length > 0 && filteredPlaces.every(p => selectedIndices.has(p.index))
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center p-8 min-h-[460px] rounded-2xl glass relative overflow-hidden select-none animate-fade-in">
         <div className="absolute -top-24 -left-24 w-48 h-48 rounded-full bg-blue-500/10 blur-[60px]" />
@@ -576,12 +589,7 @@ export function WheelOfPlaces() {
 
         {/* Scrollable list of places */}
         <ScrollArea className="h-[210px] pr-1">
-          {loading ? (
-            <div className="flex flex-col items-center justify-center h-full gap-2 text-muted-foreground text-xs">
-              <span className="w-5 h-5 rounded-full border-2 border-zinc-300 dark:border-zinc-700 border-t-blue-500 animate-spin" />
-              Loading list kuliner...
-            </div>
-          ) : filteredPlaces.length === 0 ? (
+          {!filteredPlaces.length ? (
             <div className="flex items-center justify-center h-[180px] text-zinc-600 text-xs font-medium">
               Nggak nemu tempat yang pas, bro.
             </div>
