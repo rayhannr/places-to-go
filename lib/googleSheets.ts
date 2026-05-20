@@ -266,3 +266,51 @@ export async function updateVisitDate(
   const key = `${spreadsheetId}::${tabName}`
   cache.delete(key)
 }
+
+/**
+ * Delete a specific row by its 1-based index (e.g. index 2 is the first data row).
+ */
+export async function deleteRow(
+  spreadsheetId: string,
+  tabName: string,
+  rowIndex: number
+): Promise<void> {
+  const sheets = await getSheetsClient()
+  
+  // Find the sheetId for the given tabName
+  const spreadsheet = await sheets.spreadsheets.get({
+    spreadsheetId,
+  })
+  const sheet = spreadsheet.data.sheets?.find(s => s.properties?.title === tabName)
+  const sheetId = sheet?.properties?.sheetId
+  
+  if (sheetId === undefined || sheetId === null) {
+    throw new Error(`Tab "${tabName}" not found in spreadsheet.`)
+  }
+
+  // Deleting row requires 0-based indexing.
+  // Since rowIndex is 1-based, the startIndex (0-based) is rowIndex - 1.
+  // The endIndex is startIndex + 1, which is rowIndex.
+  await sheets.spreadsheets.batchUpdate({
+    spreadsheetId,
+    requestBody: {
+      requests: [
+        {
+          deleteDimension: {
+            range: {
+              sheetId,
+              dimension: 'ROWS',
+              startIndex: rowIndex - 1,
+              endIndex: rowIndex
+            }
+          }
+        }
+      ]
+    }
+  })
+
+  // Invalidate cache
+  const key = `${spreadsheetId}::${tabName}`
+  cache.delete(key)
+}
+

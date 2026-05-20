@@ -1,6 +1,6 @@
 import { tool } from 'ai'
 import { z } from 'zod'
-import { getRows, appendRow, updateVisitDate } from '../../googleSheets'
+import { getRows, appendRow, updateVisitDate, deleteRow } from '../../googleSheets'
 import { compactPlace, syncLiveDistancesIfNeeded, filterByStatus, fuzzySearchPlaces, SPREADSHEET_ID, TAB_NAME } from './logic'
 import {
   Coords,
@@ -323,6 +323,37 @@ export const visit_place = tool({
       placeName: finalName,
       visitDate,
       message: `Mantap! "${finalName}" udah gue tandai dikunjungi tanggal ${visitDate}.`
+    }
+  }
+})
+
+export const delete_place = tool({
+  description: 'Delete a place from the personal tracker list completely.',
+  inputSchema: z.object({
+    name: z.string().describe('The name of the place to delete')
+  }),
+  execute: async ({ name }: { name: string }) => {
+    let allRows = await getRows(SPREADSHEET_ID, TAB_NAME)
+
+    // Find the best match using fuzzy search
+    const results = fuzzySearchPlaces(allRows, name)
+    const bestMatch = results[0]
+
+    // Threshold for matching: if the score is too high, it's likely not a match
+    if (!bestMatch || bestMatch.score > 5) {
+      return {
+        success: false,
+        message: `Waduh, tempat bernama "${name}" nggak ketemu di listmu. Coba cek lagi namanya, bro.`
+      }
+    }
+
+    await deleteRow(SPREADSHEET_ID, TAB_NAME, bestMatch.index)
+
+    const finalName = bestMatch.row.Name || bestMatch.row.name
+    return {
+      success: true,
+      placeName: finalName,
+      message: `Oke bro, "${finalName}" udah tak hapus permanen dari listmu. Barisnya juga udah tak geser naik biar rapi.`
     }
   }
 })

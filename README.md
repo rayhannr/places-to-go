@@ -20,6 +20,9 @@ An AI-powered personal food tracker that lives in your **browser** and your **Te
 - **✅ Visit Tracking**:
   - Mark places as visited to keep track of your journey.
   - `Unvisit`: Easily clear visit dates if you make a mistake.
+- **🗑️ Delete Capability**:
+  - Delete places permanently from your tracker.
+  - Automatically shifts up subsequent rows in Google Sheets to keep it clean.
 - **🌌 Midnight & Neon UI**: A sleek, high-contrast dark theme with glassmorphism.
 - **📍 Real-time Geolocation**: 
   - Web: One-click "Go Live" location tracking.

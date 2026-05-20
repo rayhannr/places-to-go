@@ -23,6 +23,11 @@
     - Mark places as visited with a specific date.
     - **Unvisit Capability**: Clear or delete a visit date if marked by mistake.
     - Uses fuzzy matching to find the correct place by name.
+- **Delete Capability (`delete_place`)**:
+    - Completely remove a place's entire row from the Google Sheet.
+    - Automatically shifts up all rows below the deleted place.
+    - Clears all in-memory caches to ensure real-time consistency.
+    - Uses fuzzy matching to find the correct place by name.
 - **UI & UX Excellence**:
     - "Midnight & Neon" aesthetic with glassmorphism in the web app.
     - Real-time tool execution status indicators.
