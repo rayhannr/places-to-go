@@ -189,11 +189,10 @@ export const add_place = tool({
     userLocation: z.object({ lat: z.number(), lng: z.number() }).optional().describe('User current location for live distance')
   }),
   execute: async ({ name, city, link, userLocation }: { name?: string; city?: string; link: string; userLocation?: Coords }) => {
-    // 🔍 Deduplication Check
     const existingRows = await getRows(SPREADSHEET_ID, TAB_NAME)
-    const isDuplicate = existingRows.some(r => (r.Link || r.link || '').includes(link))
-
-    if (isDuplicate) {
+    
+    // 🔍 Early Deduplication Check (Raw Link)
+    if (existingRows.some(r => (r.Link || r.link || '').includes(link))) {
       return {
         success: true,
         isDuplicate: true,
@@ -202,7 +201,7 @@ export const add_place = tool({
     }
 
     const fullUrl = await resolveShortLink(link)
-    const placeId = extractPlaceId(fullUrl)
+    let placeId = extractPlaceId(fullUrl)
     let c = extractCoords(fullUrl)
 
     let finalName = name
@@ -220,6 +219,26 @@ export const add_place = tool({
 
     // Fallback: extract name from URL
     if (!finalName) finalName = extractPlaceName(fullUrl) ?? undefined
+
+    // If we STILL don't have a placeId, try to search for it using the name
+    if (!placeId && finalName) {
+      const searchResults = await searchGmapsPlaces(finalName)
+      if (searchResults.length > 0 && searchResults[0].place_id) {
+        placeId = searchResults[0].place_id || null
+      }
+    }
+
+    // 🔍 Smarter Deduplication Check (Place ID)
+    if (placeId) {
+      const isDuplicateById = existingRows.some(r => extractPlaceId(r.Link || r.link || '') === placeId)
+      if (isDuplicateById) {
+        return {
+          success: true,
+          isDuplicate: true,
+          message: 'Tempat ini udah ada di listmu bro (ketahuan dari ID tempatnya), jadi nggak tak tambah lagi biar nggak dobel!'
+        }
+      }
+    }
 
     // Fallback: geocode by name if still no coords
     if (!c && finalName) {
@@ -267,11 +286,15 @@ export const add_place = tool({
       }
     }
 
-    // Inject coordinates into the URL if we have them but the URL doesn't (to make future syncs robust)
+    // Inject coordinates and place_id into the URL if we have them but the URL doesn't
     let savedUrl = fullUrl
-    if (c && !extractCoords(fullUrl)) {
-      const separator = fullUrl.includes('?') ? '&' : '?'
-      savedUrl = `${fullUrl}${separator}ll=${c.lat},${c.lng}`
+    if (c && !extractCoords(savedUrl)) {
+      const separator = savedUrl.includes('?') ? '&' : '?'
+      savedUrl = `${savedUrl}${separator}ll=${c.lat},${c.lng}`
+    }
+    if (placeId && !extractPlaceId(savedUrl)) {
+      const separator = savedUrl.includes('?') ? '&' : '?'
+      savedUrl = `${savedUrl}${separator}query_place_id=${placeId}`
     }
 
     const row = [finalName, finalCity, savedUrl, distKm!, travelMin!, '', liveDistKm, liveTravelMin]
