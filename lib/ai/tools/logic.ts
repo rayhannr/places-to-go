@@ -12,9 +12,9 @@ export function compactPlace(r: PlaceRow, useLive = false) {
     : r['Travel Time (min)'] || r.travelMin
 
   return {
-    name: r.Name || r.name,
-    city: r.City || r.city,
-    link: r.Link || r.link,
+    name: r.Name,
+    city: r.City,
+    link: r.Link,
     dist,
     time,
     visited: r['Date Visited'] || null
@@ -54,9 +54,9 @@ export async function syncLiveDistancesIfNeeded(rows: PlaceRow[], userLocation: 
     // Resolve short links and find coordinates (with geocode fallback)
     const resolvedRows = await Promise.all(
       rows.map(async (r, index) => {
-        const link = r.Link || r.link || ''
-        const name = r.Name || r.name || ''
-        const city = r.City || r.city || ''
+        const link = r.Link || ''
+        const name = r.Name || ''
+        const city = r.City || ''
         
         const needsResolve = link.includes('maps.app.goo.gl') || link.includes('goo.gl/maps')
         const fullUrl = needsResolve ? await resolveShortLink(link) : link
@@ -85,7 +85,7 @@ export async function syncLiveDistancesIfNeeded(rows: PlaceRow[], userLocation: 
     console.log(`[Sync] API returned ${results.length} distance results.`)
     
     const updateValues: (string | number | null)[][] = rows.map(() => [null, null])
-    const linkUpdateValues: (string | null)[][] = rows.map(r => [r.Link || r.link || null])
+    const linkUpdateValues: (string | null)[][] = rows.map(r => [r.Link || null])
     let linksChanged = false
 
     results.forEach(res => {
@@ -104,7 +104,7 @@ export async function syncLiveDistancesIfNeeded(rows: PlaceRow[], userLocation: 
           rows[rowIndex]['Travel Time (from current location)'] = travelMin
           
           // Check if link was repaired (resolved or tagged)
-          const originalLink = rows[rowIndex].Link || rows[rowIndex].link
+          const originalLink = rows[rowIndex].Link
           const repairedLink = matchedRow.resolvedLink
           
           // Inject tag if we geocoded but URL is still coord-less
@@ -148,7 +148,7 @@ export function fuzzySearchPlaces(rows: PlaceRow[], query: string) {
   
   return rows
     .map((r, index) => {
-      const name = (r.Name || r.name || '').toLowerCase()
+      const name = (r.Name || '').toLowerCase()
       let score = levenshtein.get(name, queryLower)
       
       if (name === queryLower) {

@@ -69,8 +69,8 @@ export const sync_all_distances = tool({
     }
 
     const compactPlace = (r: any) => ({
-      name: r.Name || r.name,
-      city: r.City || r.city,
+      name: r.Name,
+      city: r.City,
       distance: r['Distance (from current location)']
     })
 

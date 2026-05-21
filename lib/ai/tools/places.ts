@@ -140,7 +140,7 @@ export const get_places_by_city = tool({
       allRows = await syncLiveDistancesIfNeeded(allRows, userLocation)
     }
     const filtered = filterByStatus(allRows, status).filter(r => {
-      const rowCity = (r.City || r.city || '').toLowerCase()
+      const rowCity = (r.City || '').toLowerCase()
       return rowCity.includes(city.toLowerCase())
     })
     const shuffled = [...filtered].sort(() => 0.5 - Math.random())
@@ -192,7 +192,7 @@ export const add_place = tool({
     const existingRows = await getRows(SPREADSHEET_ID, TAB_NAME)
     
     // 🔍 Early Deduplication Check (Raw Link)
-    if (existingRows.some(r => (r.Link || r.link || '').includes(link))) {
+    if (existingRows.some(r => (r.Link || '').includes(link))) {
       return {
         success: true,
         isDuplicate: true,
@@ -230,7 +230,7 @@ export const add_place = tool({
 
     // 🔍 Smarter Deduplication Check (Place ID)
     if (placeId) {
-      const isDuplicateById = existingRows.some(r => extractPlaceId(r.Link || r.link || '') === placeId)
+      const isDuplicateById = existingRows.some(r => extractPlaceId(r.Link || '') === placeId)
       if (isDuplicateById) {
         return {
           success: true,
@@ -332,7 +332,7 @@ export const visit_place = tool({
 
     await updateVisitDate(SPREADSHEET_ID, TAB_NAME, bestMatch.index, visitDate)
 
-    const finalName = bestMatch.row.Name || bestMatch.row.name
+    const finalName = bestMatch.row.Name
     if (unvisit) {
       return {
         success: true,
@@ -372,7 +372,7 @@ export const delete_place = tool({
 
     await deleteRow(SPREADSHEET_ID, TAB_NAME, bestMatch.index)
 
-    const finalName = bestMatch.row.Name || bestMatch.row.name
+    const finalName = bestMatch.row.Name
     return {
       success: true,
       placeName: finalName,
