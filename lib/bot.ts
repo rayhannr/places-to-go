@@ -9,11 +9,7 @@ import { getChatSession, saveChatSession } from './googleSheets'
 const token = process.env.TELEGRAM_BOT_TOKEN
 const allowedUserIds = process.env.TELEGRAM_ALLOWED_USER_ID?.split(',').map(id => id.trim()) || []
 
-if (!token) {
-  throw new Error('TELEGRAM_BOT_TOKEN is not set')
-}
-
-export const bot = new Bot(token)
+export const bot = new Bot(token || 'demo')
 
 // Persistent store for user locations in Google Sheets
 bot.on(['message:location', 'edited_message:location'], async ctx => {

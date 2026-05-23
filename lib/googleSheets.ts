@@ -1,23 +1,19 @@
 import { google, sheets_v4 } from 'googleapis'
+import {
+  demoGetRows,
+  demoAppendRow,
+  demoUpdateLiveDistances,
+  demoUpdateSheetLinks,
+  demoGetChatSession,
+  demoSaveChatSession,
+  demoUpdateVisitDate,
+  demoDeleteRow
+} from './demo-store'
+export type { PlaceRow } from './types'
 
-export interface PlaceRow {
-  Name: string
-  City: string
-  Link: string
-  'Distance (km)': string | number | null
-  'Travel Time (min)': string | number | null
-  'Date Visited': string | null
-  'Distance (from current location)': string | number | null
-  'Travel Time (from current location)': string | number | null
-  // Support for lowercase keys if they exist in legacy code
-  name?: string
-  city?: string
-  link?: string
-  distKm?: string | number
-  travelMin?: string | number
-  lat?: number
-  lng?: number
-}
+const DEMO_MODE = process.env.DEMO_MODE === 'true'
+
+import type { PlaceRow } from './types'
 
 interface CacheEntry {
   rows: PlaceRow[]
@@ -51,6 +47,8 @@ async function getSheetsClient(): Promise<sheets_v4.Sheets> {
  * Fetch rows from a spreadsheet tab.
  */
 export async function getRows(spreadsheetId: string, tabName: string): Promise<PlaceRow[]> {
+  if (DEMO_MODE) return demoGetRows(spreadsheetId, tabName)
+
   const key = `${spreadsheetId}::${tabName}`
   const cached = cache.get(key)
 
@@ -84,6 +82,8 @@ export async function getRows(spreadsheetId: string, tabName: string): Promise<P
  * Append a row to a spreadsheet tab.
  */
 export async function appendRow(spreadsheetId: string, tabName: string, values: (string | number | null)[]): Promise<void> {
+  if (DEMO_MODE) return demoAppendRow(spreadsheetId, tabName, values)
+
   const sheets = await getSheetsClient()
   await sheets.spreadsheets.values.append({
     spreadsheetId,
@@ -107,6 +107,8 @@ export async function updateLiveDistances(
   tabName: string,
   values: (string | number | null)[][]
 ): Promise<void> {
+  if (DEMO_MODE) return demoUpdateLiveDistances(spreadsheetId, tabName, values)
+
   const sheets = await getSheetsClient()
   const range = `${tabName}!G2:H${1 + values.length}`
   
@@ -131,6 +133,8 @@ export async function updateSheetLinks(
   tabName: string,
   values: (string | null)[][]
 ): Promise<void> {
+  if (DEMO_MODE) return demoUpdateSheetLinks(spreadsheetId, tabName, values)
+
   const sheets = await getSheetsClient()
   const range = `${tabName}!C2:C${1 + values.length}`
   
@@ -155,6 +159,8 @@ export async function getChatSession(userId: string): Promise<{
   lng: number | null
   history: any[]
 }> {
+  if (DEMO_MODE) return demoGetChatSession(userId)
+
   const sheets = await getSheetsClient()
   const spreadsheetId = process.env.SPREADSHEET_ID!
   const tabName = 'Session'
@@ -194,9 +200,11 @@ export async function getChatSession(userId: string): Promise<{
  * Persist user session (location and/or chat history) to the 'Session' tab.
  */
 export async function saveChatSession(
-  userId: string, 
+  userId: string,
   data: { lat?: number | null; lng?: number | null; history?: any[] }
 ): Promise<void> {
+  if (DEMO_MODE) return demoSaveChatSession(userId, data)
+
   const sheets = await getSheetsClient()
   const spreadsheetId = process.env.SPREADSHEET_ID!
   const tabName = 'Session'
@@ -251,6 +259,8 @@ export async function updateVisitDate(
   rowIndex: number,
   date: string
 ): Promise<void> {
+  if (DEMO_MODE) return demoUpdateVisitDate(spreadsheetId, tabName, rowIndex, date)
+
   const sheets = await getSheetsClient()
   const range = `${tabName}!F${rowIndex}`
   
@@ -275,6 +285,8 @@ export async function deleteRow(
   tabName: string,
   rowIndex: number
 ): Promise<void> {
+  if (DEMO_MODE) return demoDeleteRow(spreadsheetId, tabName, rowIndex)
+
   const sheets = await getSheetsClient()
   
   // Find the sheetId for the given tabName
