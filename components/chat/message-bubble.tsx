@@ -9,14 +9,84 @@ import { cn } from '@/lib/utils'
 function ToolPartView({ part }: { part: ToolPart }) {
   const toolName = part.type.replace('tool-', '')
 
-  // Specific loading messages
-  const getStatusText = () => {
+  const statusTextMap: Record<string, string> = {
+    add_place: 'Adding place to tracker…',
+    get_current_location: 'Locating you…',
+    sync_all_distances: 'Syncing distances from your location…',
+    visit_place: 'Updating visit date…',
+    parse_place_link: 'Parsing place link…'
+  }
+
+  const getStatusText = () => statusTextMap[toolName] ?? 'Fetching your places…'
+
+  const defaultSuccessIcon = (
+    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+  )
+  const defaultErrorIcon = (
+    <CheckCircle2 className="w-3.5 h-3.5 text-red-500 shrink-0" />
+  )
+  const defaultWarningIcon = (
+    <CheckCircle2 className="w-3.5 h-3.5 text-yellow-500 shrink-0" />
+  )
+
+  const renderResult = (icon: React.ReactNode, children: React.ReactNode) => (
+    <ToolResult icon={icon}>{children}</ToolResult>
+  )
+
+  const renderSuccess = (children: React.ReactNode) => renderResult(defaultSuccessIcon, children)
+  const renderError = (message: string, icon = defaultErrorIcon) => renderResult(icon, message)
+
+  const renderQueryResult = (output: any) => {
+    const count = output?.length ?? 0
+    return renderSuccess(
+      <>Found {count} place{count !== 1 ? 's' : ''}</>
+    )
+  }
+
+  const renderToolOutput = (output: any) => {
     switch (toolName) {
-      case 'add_place': return 'Adding place to tracker…'
-      case 'get_current_location': return 'Locating you…'
-      case 'sync_all_distances': return 'Syncing distances from your location…'
-      case 'visit_place': return 'Updating visit date…'
-      default: return 'Fetching your places…'
+      case 'add_place': {
+        const name = output?.entry?.name ?? 'place'
+        return renderSuccess(<>Added "{name}" successfully</>)
+      }
+      case 'get_current_location': {
+        const address = output?.address || 'Unknown address'
+        return renderSuccess(<>Located: {address}</>)
+      }
+      case 'sync_all_distances': {
+        if (!output?.success) {
+          return renderError('No GPS — share your location first', defaultWarningIcon)
+        }
+        const label = output?.updated
+          ? `Updated distances for ${output.count} place${output.count !== 1 ? 's' : ''}`
+          : 'Already up to date — you haven\'t moved more than 2km'
+        return renderSuccess(<>{label}</>)
+      }
+      case 'visit_place': {
+        const name = output?.placeName ?? 'place'
+        const date = output?.visitDate ?? 'today'
+        if (!output?.success) {
+          return renderError(output?.message || `Failed to mark "${name}" as visited`)
+        }
+        return renderSuccess(<>Marked "{name}" visited on {date}</>)
+      }
+      case 'parse_place_link': {
+        const parsedOutput = output as { placeName?: string; coords?: { lat: number; lng: number }; message?: string; success?: boolean }
+
+        if (!parsedOutput?.success) {
+          return renderError(parsedOutput?.message || 'Failed to parse the place link.')
+        }
+
+        const name = parsedOutput.placeName
+        const coords = parsedOutput.coords
+        const coordLabel = coords ? `${coords.lat.toFixed(6)}, ${coords.lng.toFixed(6)}` : 'coordinates not found'
+
+        return renderSuccess(
+          <>Parsed {name ? `"${name}"` : 'place'} — {coordLabel}</>
+        )
+      }
+      default:
+        return renderQueryResult(output)
     }
   }
 
@@ -30,72 +100,7 @@ function ToolPartView({ part }: { part: ToolPart }) {
   }
 
   if (part.state === 'output-available') {
-    const output = part.output
-    
-    // 1. Adding a place
-    if (toolName === 'add_place') {
-      const name = output?.entry?.name ?? 'place'
-      return (
-        <ToolResult icon={<CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />}>
-          Added "{name}" successfully
-        </ToolResult>
-      )
-    }
-
-    // 2. Getting current location
-    if (toolName === 'get_current_location') {
-      const address = output?.address || 'Unknown address'
-      return (
-        <ToolResult icon={<CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />}>
-          Located: {address}
-        </ToolResult>
-      )
-    }
-
-    // 3. Syncing distances
-    if (toolName === 'sync_all_distances') {
-      if (!output?.success) {
-        return (
-          <ToolResult icon={<CheckCircle2 className="w-3.5 h-3.5 text-yellow-500 shrink-0" />}>
-            No GPS — share your location first
-          </ToolResult>
-        )
-      }
-      const label = output?.updated
-        ? `Updated distances for ${output.count} place${output.count !== 1 ? 's' : ''}`
-        : 'Already up to date — you haven\'t moved more than 2km'
-      return (
-        <ToolResult icon={<CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />}>
-          {label}
-        </ToolResult>
-      )
-    }
-    
-    // 4. Marking a place as visited
-    if (toolName === 'visit_place') {
-      const name = output?.placeName ?? 'place'
-      const date = output?.visitDate ?? 'today'
-      if (!output?.success) {
-        return (
-          <ToolResult icon={<CheckCircle2 className="w-3.5 h-3.5 text-red-500 shrink-0" />}>
-            {output?.message || `Failed to mark "${name}" as visited`}
-          </ToolResult>
-        )
-      }
-      return (
-        <ToolResult icon={<CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />}>
-          Marked "{name}" visited on {date}
-        </ToolResult>
-      )
-    }
-
-    // 3. Search/Retrieval tools (everything else)
-    const count = output?.length ?? 0
-    return (
-      <ToolResult icon={<CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />}>
-        Found {count} place{count !== 1 ? 's' : ''}
-      </ToolResult>
-    )
+    return renderToolOutput(part.output)
   }
 
   return null

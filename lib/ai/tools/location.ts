@@ -2,7 +2,13 @@ import { tool } from 'ai'
 import { z } from 'zod'
 import { getRows, saveChatSession, getChatSession } from '../../googleSheets'
 import { syncLiveDistancesIfNeeded, SPREADSHEET_ID, TAB_NAME } from './logic'
-import { gmapsClient, GMAPS_API_KEY, haversineDistance, resolveCoordsFromLocationInput } from './utils'
+import {
+  gmapsClient,
+  GMAPS_API_KEY,
+  haversineDistance,
+  resolveCoordsFromLocationInput,
+  extractPlaceDetailsFromLink
+} from './utils'
 
 export const get_current_location = tool({
   description:
@@ -131,6 +137,32 @@ export const sync_all_distances = tool({
       count: rows.length,
       nearby,
       message: `Mantap! Barusan tak update jarak buat ${rows.length} tempat berdasarkan ${sourceLabel}.`
+    }
+  }
+})
+export const parse_place_link = tool({
+  description:
+    'Parse a Google Maps or coordinate link to extract the place name and coordinates so it can be used for syncing distance.',
+  inputSchema: z.object({
+    link: z.string().describe('Google Maps URL, Maps short link, or coordinate text')
+  }),
+  execute: async ({ link }) => {
+    const details = await extractPlaceDetailsFromLink(link)
+
+    if (!details.coords && !details.name) {
+      return {
+        success: false,
+        error: 'INVALID_PLACE_LINK',
+        message:
+          'Gak bisa baca link itu, bro. Pastikan itu Google Maps link atau koordinat yang valid seperti `-7.7828,110.3608`.'
+      }
+    }
+
+    return {
+      success: true,
+      coords: details.coords,
+      placeName: details.name,
+      resolvedLink: details.resolvedLink
     }
   }
 })

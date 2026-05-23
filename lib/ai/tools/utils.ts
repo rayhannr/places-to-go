@@ -107,6 +107,29 @@ export function extractPlaceName(url: string | null): string | null {
   return null
 }
 
+export async function extractPlaceDetailsFromLink(
+  input: string
+): Promise<{ coords: Coords | null; name: string | null; resolvedLink: string }> {
+  const { resolvedUrl } = await normalizeLocationInput(input)
+
+  const coords = await resolveCoordsFromLocationInput(resolvedUrl)
+  let name = extractPlaceName(resolvedUrl)
+
+  if (!name) {
+    try {
+      const url = new URL(resolvedUrl)
+      const query = url.searchParams.get('query') || url.searchParams.get('q')
+      if (query && !query.match(/^-?\d+\.\d+,-?\d+\.\d+$/)) {
+        name = query.split(/,\s*| - /)[0].trim()
+      }
+    } catch (error) {
+      // ignore invalid URL parsing here
+    }
+  }
+
+  return { coords, name, resolvedLink: resolvedUrl }
+}
+
 export async function coordsFromPlaceName(placeName: string): Promise<Coords | null> {
   try {
     const resp = await gmapsClient.geocode({
@@ -122,9 +145,7 @@ export async function coordsFromPlaceName(placeName: string): Promise<Coords | n
   return null
 }
 
-export async function resolveCoordsFromLocationInput(input: string): Promise<Coords | null> {
-  if (!input || !input.trim()) return null
-
+export async function normalizeLocationInput(input: string): Promise<{ candidate: string; resolvedUrl: string }> {
   let candidate = input.trim()
   if (!candidate.match(/^https?:\/\//i)) {
     if (candidate.match(/^(maps\.|www\.|google\.com|goo\.gl|maps\.app\.goo\.gl)/i)) {
@@ -145,6 +166,14 @@ export async function resolveCoordsFromLocationInput(input: string): Promise<Coo
   } catch (error) {
     // Not a valid URL, keep candidate as-is and continue with fallback parsing
   }
+
+  return { candidate, resolvedUrl }
+}
+
+export async function resolveCoordsFromLocationInput(input: string): Promise<Coords | null> {
+  if (!input || !input.trim()) return null
+
+  const { candidate, resolvedUrl } = await normalizeLocationInput(input)
 
   let coords = extractCoords(resolvedUrl)
   if (coords) return coords
