@@ -42,6 +42,13 @@
     - Supports real-time GPS tracking from Web and Telegram.
     - **The 2km Rule**: Only recalculates distances if the user moves >2km, saving API costs.
     - **Persistent Sessions**: Stores user location in a dedicated `Session` tab on Google Sheets.
+- **Wheel of Places**:
+    - Interactive spinning wheel on the web app for randomly deciding where to eat.
+    - Fetches the full place list via `/api/places` and lets users cherry-pick which places enter the wheel.
+    - Supports filtering by visit status (unvisited / visited / all) and fuzzy search by name or city.
+    - Already-picked places are automatically struck through and excluded from subsequent spins within the same session; a reset button restores them.
+    - Synthesis-based tick sound on each slice transition (toggleable).
+    - Displays a winner modal with place name, city, distance, travel time, and a direct Google Maps link.
 - **AI-Driven Error Recovery**: 
     - Secondary AI call in the Telegram bot to interpret and explain technical errors in persona.
 
