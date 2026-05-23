@@ -53,16 +53,22 @@ function ToolPartView({ part }: { part: ToolPart }) {
   const renderToolOutput = (output: any) => {
     switch (toolName) {
       case 'add_place': {
+        if (output?.isDuplicate) {
+          return renderError('Place already in your list')
+        }
         const name = output?.entry?.name ?? 'place'
         return renderSuccess(<>Added "{name}" successfully</>)
       }
       case 'get_current_location': {
+        if (!output?.success) {
+          return renderError('GPS unavailable — share your location first', defaultWarningIcon)
+        }
         const address = output?.address || 'Unknown address'
         return renderSuccess(<>Located: {address}</>)
       }
       case 'sync_all_distances': {
         if (!output?.success) {
-          return renderError('No GPS — share your location first', defaultWarningIcon)
+          return renderError('No location available — share your GPS or a Maps link', defaultWarningIcon)
         }
         const label = output?.updated
           ? `Updated distances for ${output.count} place${output.count !== 1 ? 's' : ''}`
