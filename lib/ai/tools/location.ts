@@ -1,7 +1,7 @@
 import { tool } from 'ai'
 import { z } from 'zod'
 import { getRows, saveChatSession, getChatSession } from '../../googleSheets'
-import { syncLiveDistancesIfNeeded, SPREADSHEET_ID, TAB_NAME } from './logic'
+import { syncLiveDistancesIfNeeded, filterByStatus, SPREADSHEET_ID, TAB_NAME } from './logic'
 import {
   gmapsClient,
   GMAPS_API_KEY,
@@ -59,9 +59,11 @@ export const sync_all_distances = tool({
   inputSchema: z.object({
     userLocation: z.object({ lat: z.number(), lng: z.number() }).optional().describe('User current location provided by the client'),
     locationLink: z.string().optional().describe('Google Maps URL to sync distances from exactly, used when the user sends a Maps link'),
-    userId: z.string().optional().describe('Unique ID for the current user session')
+    userId: z.string().optional().describe('Unique ID for the current user session'),
+    status: z.enum(['visited', 'unvisited']).optional().default('unvisited').describe('Filter nearby places by visit status'),
+    count: z.number().optional().default(5).describe('Number of nearby places to return (1-10)')
   }),
-  execute: async ({ userLocation, locationLink, userId }) => {
+  execute: async ({ userLocation, locationLink, userId, status = 'unvisited', count = 5 }) => {
     let locationToUse = userLocation
     let sourceLabel = 'lokasi sekarang'
     let saveSession = true
@@ -100,14 +102,15 @@ export const sync_all_distances = tool({
       distance: r['Distance (from current location)']
     })
 
-    const nearby = rows
-      .sort((a, b) => {
-        const distA = parseFloat(String(a['Distance (from current location)'] || 999))
-        const distB = parseFloat(String(b['Distance (from current location)'] || 999))
-        return distA - distB
-      })
-      .slice(0, 3)
-      .map(r => compactPlace(r))
+    const getNearby = () =>
+      [...filterByStatus(rows, status)]
+        .sort((a, b) => {
+          const distA = parseFloat(String(a['Distance (from current location)'] || 999))
+          const distB = parseFloat(String(b['Distance (from current location)'] || 999))
+          return distA - distB
+        })
+        .slice(0, Math.min(count, 10))
+        .map(r => compactPlace(r))
 
     if (!locationLink && userId) {
       const session = await getChatSession(userId)
@@ -118,7 +121,7 @@ export const sync_all_distances = tool({
             success: true,
             updated: false,
             count: rows.length,
-            nearby,
+            nearby: getNearby(),
             message: `Lokasimu cuma geser ${moveDist.toFixed(2)}km dari sync terakhir. Masih akurat kok datanya.`
           }
         }
@@ -135,7 +138,7 @@ export const sync_all_distances = tool({
       success: true,
       updated: true,
       count: rows.length,
-      nearby,
+      nearby: getNearby(),
       message: `Mantap! Barusan tak update jarak buat ${rows.length} tempat berdasarkan ${sourceLabel}.`
     }
   }

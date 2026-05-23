@@ -8,14 +8,16 @@
 - **24/7 Telegram Bot**: Access your tracker anytime via a Telegram bot, secured with user ID filtering.
 - **Smart Data Entry (`add_place`)**: 
     - Automatically resolves Google Maps short links.
-    - Extracts coordinates and place names from URLs.
-    - Calculates distance (km) and travel time (minutes) using Google Maps Routes API.
+    - Extracts coordinates and place names from URLs; falls back to Places API and geocoding.
+    - Deduplicates by raw link and by Place ID before inserting.
+    - Calculates distance (km) and travel time (minutes) from home base and from current location.
     - Saves data directly to a Google Sheet.
-- **Smart Lenses (`recommend_place`)**: 
-    - **Nearby**: Find spots closest to your reference point.
-    - **Quickest**: Find spots with the shortest travel time.
-    - **Random**: "Surprise me" discovery.
-    - **City-based**: Filter by specific cities.
+- **Smart Lenses**:
+    - **`get_nearby_places`**: Find spots closest to the user's current or reference location.
+    - **`get_quickest_places`**: Find spots with the shortest travel time.
+    - **`get_random_places`**: "Surprise me" discovery, optionally filtered by visit status.
+    - **`get_places_by_city`**: Filter places by a specific city name.
+    - **`search_places_by_name`**: Fuzzy search across the personal tracker by place name.
 - **Global Discovery (`search_google_maps`)**: 
     - Search for new places directly on Google Maps (outside the personal tracker).
     - Returns top 3 results with name, city, and direct Maps link.
@@ -28,6 +30,10 @@
     - Automatically shifts up all rows below the deleted place.
     - Clears all in-memory caches to ensure real-time consistency.
     - Uses fuzzy matching to find the correct place by name.
+- **Location Tools**:
+    - **`get_current_location`**: Reverse-geocodes user GPS coordinates to a human-readable address and persists to session.
+    - **`sync_all_distances`**: Force-recalculates distances and travel times for all places from the user's GPS or a custom Maps link. Respects the 2km rule when syncing from GPS.
+    - **`parse_place_link`**: Resolves a Google Maps short link or coordinate string to extract place name and coordinates.
 - **UI & UX Excellence**:
     - "Midnight & Neon" aesthetic with glassmorphism in the web app.
     - Real-time tool execution status indicators.

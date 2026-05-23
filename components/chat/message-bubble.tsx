@@ -14,7 +14,14 @@ function ToolPartView({ part }: { part: ToolPart }) {
     get_current_location: 'Locating you…',
     sync_all_distances: 'Syncing distances from your location…',
     visit_place: 'Updating visit date…',
-    parse_place_link: 'Parsing place link…'
+    delete_place: 'Deleting place from tracker…',
+    parse_place_link: 'Parsing place link…',
+    get_nearby_places: 'Finding nearby places…',
+    get_quickest_places: 'Finding quickest places…',
+    get_random_places: 'Picking a random place…',
+    get_places_by_city: 'Fetching places by city…',
+    search_places_by_name: 'Searching your places…',
+    search_google_maps: 'Searching Google Maps…'
   }
 
   const getStatusText = () => statusTextMap[toolName] ?? 'Fetching your places…'
@@ -36,10 +43,10 @@ function ToolPartView({ part }: { part: ToolPart }) {
   const renderSuccess = (children: React.ReactNode) => renderResult(defaultSuccessIcon, children)
   const renderError = (message: string, icon = defaultErrorIcon) => renderResult(icon, message)
 
-  const renderQueryResult = (output: any) => {
+  const renderPlaceListResult = (output: any, verb: string) => {
     const count = output?.length ?? 0
     return renderSuccess(
-      <>Found {count} place{count !== 1 ? 's' : ''}</>
+      <>{verb} {count} place{count !== 1 ? 's' : ''}</>
     )
   }
 
@@ -68,25 +75,45 @@ function ToolPartView({ part }: { part: ToolPart }) {
         if (!output?.success) {
           return renderError(output?.message || `Failed to mark "${name}" as visited`)
         }
+        if (!output?.visitDate) {
+          return renderSuccess(<>Cleared visit date for "{name}"</>)
+        }
         return renderSuccess(<>Marked "{name}" visited on {date}</>)
       }
-      case 'parse_place_link': {
-        const parsedOutput = output as { placeName?: string; coords?: { lat: number; lng: number }; message?: string; success?: boolean }
-
-        if (!parsedOutput?.success) {
-          return renderError(parsedOutput?.message || 'Failed to parse the place link.')
+      case 'delete_place': {
+        const name = output?.placeName ?? 'place'
+        if (!output?.success) {
+          return renderError(output?.message || `Failed to delete "${name}"`)
         }
-
-        const name = parsedOutput.placeName
-        const coords = parsedOutput.coords
+        return renderSuccess(<>Deleted "{name}" from tracker</>)
+      }
+      case 'parse_place_link': {
+        if (!output?.success) {
+          return renderError(output?.message || 'Failed to parse the place link.')
+        }
+        const name = output?.placeName
+        const coords = output?.coords as { lat: number; lng: number } | undefined
         const coordLabel = coords ? `${coords.lat.toFixed(6)}, ${coords.lng.toFixed(6)}` : 'coordinates not found'
-
         return renderSuccess(
           <>Parsed {name ? `"${name}"` : 'place'} — {coordLabel}</>
         )
       }
+      case 'get_nearby_places':
+        return renderPlaceListResult(output, 'Found')
+      case 'get_quickest_places':
+        return renderPlaceListResult(output, 'Found')
+      case 'get_random_places':
+        return renderPlaceListResult(output, 'Picked')
+      case 'get_places_by_city':
+        return renderPlaceListResult(output, 'Found')
+      case 'search_places_by_name':
+        return renderPlaceListResult(output, 'Found')
+      case 'search_google_maps': {
+        const count = output?.length ?? 0
+        return renderSuccess(<>Found {count} result{count !== 1 ? 's' : ''} on Google Maps</>)
+      }
       default:
-        return renderQueryResult(output)
+        return renderPlaceListResult(output, 'Found')
     }
   }
 
