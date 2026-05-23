@@ -21,7 +21,11 @@ export function compactPlace(r: PlaceRow, useLive = false) {
   }
 }
 
-export async function syncLiveDistancesIfNeeded(rows: PlaceRow[], userLocation: Coords | undefined): Promise<PlaceRow[]> {
+export async function syncLiveDistancesIfNeeded(
+  rows: PlaceRow[],
+  userLocation: Coords | undefined,
+  forceUpdate = false
+): Promise<PlaceRow[]> {
   if (!userLocation) return rows
   if (rows.length === 0) return rows
 
@@ -31,9 +35,9 @@ export async function syncLiveDistancesIfNeeded(rows: PlaceRow[], userLocation: 
 
   const needsInitialization = storedDist === null || storedDist === undefined || storedDist === ''
 
-  let shouldUpdate = needsInitialization
+  let shouldUpdate = needsInitialization || forceUpdate
 
-  if (!needsInitialization && firstCoords) {
+  if (!shouldUpdate && !needsInitialization && firstCoords) {
     const currentRealDist = haversineDistance(userLocation.lat, userLocation.lng, firstCoords.lat, firstCoords.lng)
     const diff = Math.abs(currentRealDist - parseFloat(storedDist.toString()))
     console.log(`[Sync] Distance check: current=${currentRealDist.toFixed(3)}km, stored=${storedDist}km, diff=${diff.toFixed(3)}km`)

@@ -2,7 +2,7 @@ import { tool } from 'ai'
 import { z } from 'zod'
 import { getRows, saveChatSession, getChatSession } from '../../googleSheets'
 import { syncLiveDistancesIfNeeded, SPREADSHEET_ID, TAB_NAME } from './logic'
-import { gmapsClient, GMAPS_API_KEY, haversineDistance } from './utils'
+import { gmapsClient, GMAPS_API_KEY, haversineDistance, resolveCoordsFromLocationInput } from './utils'
 
 export const get_current_location = tool({
   description:
@@ -49,17 +49,37 @@ export const get_current_location = tool({
 
 export const sync_all_distances = tool({
   description:
-    "Manually trigger a recalculation of distances and travel times from the user's current location to all saved places. Only recalculates if the user has moved more than 2km since the last sync.",
+    "Manually trigger a recalculation of distances and travel times to all saved places. Use an optional Google Maps link or custom location string to sync from a different location than the user's GPS.",
   inputSchema: z.object({
     userLocation: z.object({ lat: z.number(), lng: z.number() }).optional().describe('User current location provided by the client'),
+    locationLink: z.string().optional().describe('Google Maps URL to sync distances from exactly, used when the user sends a Maps link'),
     userId: z.string().optional().describe('Unique ID for the current user session')
   }),
-  execute: async ({ userLocation, userId }) => {
-    if (!userLocation) {
+  execute: async ({ userLocation, locationLink, userId }) => {
+    let locationToUse = userLocation
+    let sourceLabel = 'lokasi sekarang'
+    let saveSession = true
+
+    if (locationLink) {
+      const customCoords = await resolveCoordsFromLocationInput(locationLink)
+      if (!customCoords) {
+        return {
+          success: false,
+          error: 'INVALID_CUSTOM_LOCATION',
+          message:
+            'Gak bisa baca link lokasi itu, bro. Pastikan itu Google Maps link atau titik koordinat yang valid, terus coba lagi.'
+        }
+      }
+      locationToUse = customCoords
+      sourceLabel = 'lokasi kustom yang kamu kirim'
+      saveSession = false
+    }
+
+    if (!locationToUse) {
       return {
         success: false,
         error: 'GPS_DISABLED',
-        message: 'Lokasimu nggak ketemu bro. Share dulu GPS-nya biar bisa tak hitung jaraknya.'
+        message: 'Lokasimu nggak ketemu bro. Share dulu GPS-nya atau kirim link Google Maps lokasi yang jelas.'
       }
     }
 
@@ -83,11 +103,10 @@ export const sync_all_distances = tool({
       .slice(0, 3)
       .map(r => compactPlace(r))
 
-    // 1. Check movement against Session location (Consistency check)
-    if (userId) {
+    if (!locationLink && userId) {
       const session = await getChatSession(userId)
       if (session.lat && session.lng) {
-        const moveDist = haversineDistance(userLocation.lat, userLocation.lng, session.lat, session.lng)
+        const moveDist = haversineDistance(locationToUse.lat, locationToUse.lng, session.lat, session.lng)
         if (moveDist <= 2) {
           return {
             success: true,
@@ -100,12 +119,10 @@ export const sync_all_distances = tool({
       }
     }
 
-    // 2. Perform the actual sync
-    await syncLiveDistancesIfNeeded(rows, userLocation)
+    await syncLiveDistancesIfNeeded(rows, locationToUse, !!locationLink)
 
-    // 3. Save new location to session as the new reference point
-    if (userId) {
-      await saveChatSession(userId, { lat: userLocation.lat, lng: userLocation.lng })
+    if (saveSession && userId) {
+      await saveChatSession(userId, { lat: locationToUse.lat, lng: locationToUse.lng })
     }
 
     return {
@@ -113,7 +130,7 @@ export const sync_all_distances = tool({
       updated: true,
       count: rows.length,
       nearby,
-      message: `Mantap! Barusan tak update jarak buat ${rows.length} tempat biar akurat.`
+      message: `Mantap! Barusan tak update jarak buat ${rows.length} tempat berdasarkan ${sourceLabel}.`
     }
   }
 })

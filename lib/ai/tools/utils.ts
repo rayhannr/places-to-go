@@ -67,12 +67,21 @@ export function extractCoords(url: string | null): Coords | null {
       const [lat, lng] = ll.split(',').map(Number)
       if (!isNaN(lat) && !isNaN(lng)) return { lat, lng }
     }
+
+    const queryCoord = urlObj.searchParams.get('q') || urlObj.searchParams.get('query')
+    if (queryCoord) {
+      const match = queryCoord.match(/^([+-]?\d+\.\d+),\s*([+-]?\d+\.\d+)$/)
+      if (match) return { lat: parseFloat(match[1]), lng: parseFloat(match[2]) }
+    }
+
+    const searchPathMatch = urlObj.pathname.match(/\/maps\/search\/([+-]?\d+\.\d+),([+-]?\d+\.\d+)/)
+    if (searchPathMatch) return { lat: parseFloat(searchPathMatch[1]), lng: parseFloat(searchPathMatch[2]) }
   } catch (e) {}
 
   // 2. Standard Google Maps URL patterns
-  let m = url.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/)
+  let m = url.match(/!3d([+-]?\d+\.\d+)!4d([+-]?\d+\.\d+)/)
   if (m) return { lat: parseFloat(m[1]), lng: parseFloat(m[2]) }
-  m = url.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/)
+  m = url.match(/@([+-]?\d+\.\d+),([+-]?\d+\.\d+)/)
   if (m) return { lat: parseFloat(m[1]), lng: parseFloat(m[2]) }
   
   return null
@@ -110,6 +119,58 @@ export async function coordsFromPlaceName(placeName: string): Promise<Coords | n
       return { lat, lng }
     }
   } catch (err) {}
+  return null
+}
+
+export async function resolveCoordsFromLocationInput(input: string): Promise<Coords | null> {
+  if (!input || !input.trim()) return null
+
+  let candidate = input.trim()
+  if (!candidate.match(/^https?:\/\//i)) {
+    if (candidate.match(/^(maps\.|www\.|google\.com|goo\.gl|maps\.app\.goo\.gl)/i)) {
+      candidate = `https://${candidate}`
+    }
+  }
+
+  let resolvedUrl = candidate
+  try {
+    const url = new URL(candidate)
+    if (
+      url.hostname.includes('goo.gl') ||
+      url.hostname.includes('maps.app.goo.gl') ||
+      url.href.includes('google.com/url?q=')
+    ) {
+      resolvedUrl = await resolveShortLink(url.href)
+    }
+  } catch (error) {
+    // Not a valid URL, keep candidate as-is and continue with fallback parsing
+  }
+
+  let coords = extractCoords(resolvedUrl)
+  if (coords) return coords
+
+  const latlngMatch = candidate.match(/(-?\d+\.\d+),\s*(-?\d+\.\d+)/)
+  if (latlngMatch) {
+    return { lat: parseFloat(latlngMatch[1]), lng: parseFloat(latlngMatch[2]) }
+  }
+
+  const placeName = extractPlaceName(resolvedUrl)
+  if (placeName) {
+    const geocoded = await coordsFromPlaceName(placeName)
+    if (geocoded) return geocoded
+  }
+
+  try {
+    const url = new URL(resolvedUrl)
+    const query = url.searchParams.get('query') || url.searchParams.get('q')
+    if (query) {
+      const geocoded = await coordsFromPlaceName(query)
+      if (geocoded) return geocoded
+    }
+  } catch (error) {
+    // ignore invalid URL parsing here
+  }
+
   return null
 }
 
