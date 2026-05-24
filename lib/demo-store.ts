@@ -50,6 +50,11 @@ export async function demoGetRows(_spreadsheetId: string, _tabName: string): Pro
 
 export async function demoAppendRow(_spreadsheetId: string, _tabName: string, values: (string | number | null)[]): Promise<void> {
   const data = await readData()
+  // Enforce 75-place limit in demo mode by removing the oldest place if the limit is reached
+  if (data.places.length >= 75) {
+    data.places.shift() // Remove the first (oldest) element
+  }
+
   const row: PlaceRow = {
     Name: (values[0] as string) || '',
     City: (values[1] as string) || '',

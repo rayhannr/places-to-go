@@ -54,11 +54,11 @@ export default function ChatPage() {
       navigator.geolocation.getCurrentPosition(
         pos => {
           coordsRef.current = { lat: pos.coords.latitude, lng: pos.coords.longitude }
-          toast.success('Nice, sekarang gue tau lokasi lu!')
+          toast.success('Sweet, got your location, fam!')
         },
         err => {
           console.warn('Geolocation error:', err)
-          toast.error('Gagal ambil lokasi nih, bro.')
+          toast.error("Bummer, couldn't snag your spot, dude.")
         },
         { enableHighAccuracy: true }
       )

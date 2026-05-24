@@ -190,7 +190,7 @@ export const add_place = tool({
   }),
   execute: async ({ name, city, link, userLocation }: { name?: string; city?: string; link: string; userLocation?: Coords }) => {
     const existingRows = await getRows(SPREADSHEET_ID, TAB_NAME)
-    
+
     // 🔍 Early Deduplication Check (Raw Link)
     if (existingRows.some(r => (r.Link || '').includes(link))) {
       return {
@@ -313,7 +313,7 @@ export const visit_place = tool({
   }),
   execute: async ({ name, date, unvisit }: { name: string; date?: string; unvisit?: boolean }) => {
     const today = new Date().toISOString().split('T')[0]
-    const visitDate = unvisit ? '' : (date || today)
+    const visitDate = unvisit ? '' : date || today
 
     let allRows = await getRows(SPREADSHEET_ID, TAB_NAME)
 
@@ -326,7 +326,7 @@ export const visit_place = tool({
     if (!bestMatch || bestMatch.score > 5) {
       return {
         success: false,
-        message: `Waduh, tempat bernama "${name}" nggak ketemu di listmu. Coba cek lagi namanya, bro.`
+        message: `Shit man, there is no place named "${name}" in your fucking list. You high or something?`
       }
     }
 
@@ -337,7 +337,7 @@ export const visit_place = tool({
       return {
         success: true,
         placeName: finalName,
-        message: `Oke, status kunjungan "${finalName}" udah gue hapus ya.`
+        message: `Alright, visit status for "${finalName}" is wiped, dude.`
       }
     }
 
@@ -345,7 +345,7 @@ export const visit_place = tool({
       success: true,
       placeName: finalName,
       visitDate,
-      message: `Mantap! "${finalName}" udah gue tandai dikunjungi tanggal ${visitDate}.`
+      message: `Dope! "${finalName}" hit on ${visitDate}.`
     }
   }
 })
@@ -366,7 +366,7 @@ export const delete_place = tool({
     if (!bestMatch || bestMatch.score > 5) {
       return {
         success: false,
-        message: `Waduh, tempat bernama "${name}" nggak ketemu di listmu. Coba cek lagi namanya, bro.`
+        message: `Shit man, there is no place named "${name}" in your fucking list. You high or something?`
       }
     }
 
