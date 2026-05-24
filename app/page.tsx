@@ -1,8 +1,9 @@
 'use client'
 
-import { useQueryClient } from '@tanstack/react-query'
 import { useChat } from '@ai-sdk/react'
+import { useQueryClient } from '@tanstack/react-query'
 import { DefaultChatTransport } from 'ai'
+import { Loader2 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { ChatHeader } from '@/components/chat/chat-header'
@@ -15,7 +16,6 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { WheelOfPlaces } from '@/components/wheel-of-places'
 import { Message } from '@/lib/types'
 import { cn } from '@/lib/utils'
-import { Loader2 } from 'lucide-react'
 
 // Tools that mutate the Google Sheets data — only these warrant a cache invalidation
 const MUTATING_TOOLS = new Set(['add_place', 'visit_place', 'delete_place'])
@@ -65,8 +65,9 @@ export default function ChatPage() {
     }
   }
 
-  const { messages, sendMessage, status } = useChat({ transport: new DefaultChatTransport({ api: '/api/chat' }) })
+  const { messages, sendMessage, status, error } = useChat({ transport: new DefaultChatTransport({ api: '/api/chat' }) })
   const userIdRef = useRef<string | null>(null)
+  const lastErrorRef = useRef<string | null>(null)
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -78,6 +79,28 @@ export default function ChatPage() {
       userIdRef.current = id
     }
   }, [])
+
+  // Show error toast when API returns an error
+  useEffect(() => {
+    if (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      // Avoid showing duplicate errors
+      if (lastErrorRef.current !== errorMessage) {
+        lastErrorRef.current = errorMessage
+
+        // User-friendly error messages for known errors
+        if (errorMessage.includes('429') || errorMessage.includes('rate limit') || errorMessage.includes('too many')) {
+          toast.error('Rate limited! The AI is getting too many requests. Try again in a moment.')
+        } else if (errorMessage.includes('401') || errorMessage.includes('unauthorized')) {
+          toast.error('Authentication failed. Check your API keys.')
+        } else if (errorMessage.includes('500') || errorMessage.includes('server error')) {
+          toast.error('Server error. The AI service might be down. Try again soon.')
+        } else {
+          toast.error(`Oops! ${errorMessage}`)
+        }
+      }
+    }
+  }, [error])
 
   const isLoading = status !== 'ready' && status !== 'error'
   const typedMessages = messages as Message[]

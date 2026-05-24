@@ -18,7 +18,7 @@ async function readData(): Promise<DemoData> {
     }
     const res = await axios.get<DemoData>(blob.url, {
       headers: {
-        'Authorization': `Bearer ${process.env.BLOB_READ_WRITE_TOKEN}`,
+        Authorization: `Bearer ${process.env.BLOB_READ_WRITE_TOKEN}`,
         'Cache-Control': 'no-store'
       }
     })
@@ -30,11 +30,17 @@ async function readData(): Promise<DemoData> {
 }
 
 async function writeData(data: DemoData): Promise<void> {
-  await put(BLOB_PATHNAME, JSON.stringify(data), {
-    access: 'private',
-    addRandomSuffix: false,
-    contentType: 'application/json'
-  })
+  try {
+    await put(BLOB_PATHNAME, JSON.stringify(data), {
+      access: 'private',
+      addRandomSuffix: false,
+      allowOverwrite: true,
+      contentType: 'application/json'
+    })
+  } catch (error) {
+    console.error(error)
+    throw error
+  }
 }
 
 export async function demoGetRows(_spreadsheetId: string, _tabName: string): Promise<PlaceRow[]> {
@@ -119,4 +125,4 @@ export async function demoGetChatSession(_userId: string): Promise<{
 export async function demoSaveChatSession(
   _userId: string,
   _update: { lat?: number | null; lng?: number | null; history?: any[] }
-): Promise<void> { }
+): Promise<void> {}

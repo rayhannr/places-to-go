@@ -32,11 +32,33 @@ export async function POST(req: Request) {
 
     return result.toUIMessageStreamResponse()
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : 'Unknown error'
-    console.error('Chat API error:', message)
-    return new Response(JSON.stringify({ error: message }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' }
-    })
+    const errorObj = error instanceof Error ? error : new Error(String(error))
+    const message = errorObj.message
+    const status = getHttpStatusFromError(errorObj)
+
+    console.error('Chat API error:', message, { status })
+    return new Response(JSON.stringify({ error: message, status }), { status, headers: { 'Content-Type': 'application/json' } })
   }
+}
+
+/**
+ * Extract HTTP status code from common API error patterns
+ */
+function getHttpStatusFromError(error: Error): number {
+  const message = error.message.toLowerCase()
+
+  if (message.includes('429') || message.includes('rate') || message.includes('quota')) {
+    return 429
+  }
+  if (message.includes('401') || message.includes('unauthorized') || message.includes('api key')) {
+    return 401
+  }
+  if (message.includes('403') || message.includes('forbidden')) {
+    return 403
+  }
+  if (message.includes('404') || message.includes('not found')) {
+    return 404
+  }
+
+  return 500
 }
