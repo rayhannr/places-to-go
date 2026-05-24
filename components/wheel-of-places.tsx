@@ -3,7 +3,7 @@
 import { useQuery } from '@tanstack/react-query'
 import axios from 'axios'
 import { Volume2, VolumeX, RotateCcw, Sparkles, MapPin, Play, Award, Clock, Compass, X } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -47,7 +47,6 @@ export function WheelOfPlaces() {
   const [soundEnabled, setSoundEnabled] = useState(true)
 
   // Selection / Wheel Pool
-  const [activePool, setActivePool] = useState<Place[]>([])
   const [selectedIndices, setSelectedIndices] = useState<Set<number>>(new Set())
   const [pickedIndices, setPickedIndices] = useState<Set<number>>(new Set())
 
@@ -100,10 +99,9 @@ export function WheelOfPlaces() {
     newlyAdded.forEach(p => seenIndicesRef.current.add(p.index))
   }, [places])
 
-  // Sync active pool based on selected indices and picked indices
-  useEffect(() => {
-    const pool = places.filter(p => selectedIndices.has(p.index) && !pickedIndices.has(p.index))
-    setActivePool(pool)
+  // Compute active pool based on selected and picked indices
+  const activePool = useMemo(() => {
+    return places.filter(p => selectedIndices.has(p.index) && !pickedIndices.has(p.index))
   }, [places, selectedIndices, pickedIndices])
 
   // Synthesis-based sound effect

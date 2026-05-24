@@ -1,4 +1,4 @@
-import { put, head } from '@vercel/blob'
+import { put, head, list } from '@vercel/blob'
 import axios from 'axios'
 import type { PlaceRow } from './types'
 
@@ -10,10 +10,16 @@ interface DemoData {
 
 async function readData(): Promise<DemoData> {
   try {
-    const blob = await head(BLOB_PATHNAME)
+    const { blobs } = await list({ prefix: BLOB_PATHNAME, limit: 1 })
+    const [blob] = blobs
+
+    if (!blob) {
+      throw new Error('The file could not be found in storage.')
+    }
     const res = await axios.get<DemoData>(blob.url, { headers: { 'Cache-Control': 'no-store' } })
     return res.data
-  } catch {
+  } catch (error) {
+    console.error(error)
     return { places: [] }
   }
 }
@@ -31,11 +37,7 @@ export async function demoGetRows(_spreadsheetId: string, _tabName: string): Pro
   return data.places
 }
 
-export async function demoAppendRow(
-  _spreadsheetId: string,
-  _tabName: string,
-  values: (string | number | null)[]
-): Promise<void> {
+export async function demoAppendRow(_spreadsheetId: string, _tabName: string, values: (string | number | null)[]): Promise<void> {
   const data = await readData()
   const row: PlaceRow = {
     Name: (values[0] as string) || '',
@@ -66,11 +68,7 @@ export async function demoUpdateLiveDistances(
   await writeData(data)
 }
 
-export async function demoUpdateSheetLinks(
-  _spreadsheetId: string,
-  _tabName: string,
-  values: (string | null)[][]
-): Promise<void> {
+export async function demoUpdateSheetLinks(_spreadsheetId: string, _tabName: string, values: (string | null)[][]): Promise<void> {
   const data = await readData()
   values.forEach((pair, i) => {
     if (data.places[i]) {
@@ -117,4 +115,3 @@ export async function demoSaveChatSession(
   _userId: string,
   _update: { lat?: number | null; lng?: number | null; history?: any[] }
 ): Promise<void> {}
-
