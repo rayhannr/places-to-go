@@ -19,7 +19,7 @@ const QUICK_ACTIONS = [
   },
   {
     id: 'nearby',
-    label: "What's nearby Sleman?",
+    label: "What's nearby?",
     icon: MapPin,
     color: 'text-cyan-500 dark:text-cyan-400'
   }
