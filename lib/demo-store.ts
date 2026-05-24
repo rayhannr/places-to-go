@@ -1,4 +1,4 @@
-import { put, head, list } from '@vercel/blob'
+import { put, list } from '@vercel/blob'
 import axios from 'axios'
 import type { PlaceRow } from './types'
 
@@ -16,7 +16,12 @@ async function readData(): Promise<DemoData> {
     if (!blob) {
       throw new Error('The file could not be found in storage.')
     }
-    const res = await axios.get<DemoData>(blob.url, { headers: { 'Cache-Control': 'no-store' } })
+    const res = await axios.get<DemoData>(blob.url, {
+      headers: {
+        'Authorization': `Bearer ${process.env.BLOB_READ_WRITE_TOKEN}`,
+        'Cache-Control': 'no-store'
+      }
+    })
     return res.data
   } catch (error) {
     console.error(error)
@@ -114,4 +119,4 @@ export async function demoGetChatSession(_userId: string): Promise<{
 export async function demoSaveChatSession(
   _userId: string,
   _update: { lat?: number | null; lng?: number | null; history?: any[] }
-): Promise<void> {}
+): Promise<void> { }

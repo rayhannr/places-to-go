@@ -429,7 +429,7 @@ export function WheelOfPlaces() {
               Menghubungkan
             </h3>
             <p className="text-xs text-zinc-400 max-w-[240px] leading-relaxed">
-              Sedang mengambil list tempat kuliner dari Google Sheets...
+              Sedang mengambil list tempat kuliner...
             </p>
           </div>
         </div>
