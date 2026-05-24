@@ -20,7 +20,7 @@ async function readData(): Promise<DemoData> {
 
 async function writeData(data: DemoData): Promise<void> {
   await put(BLOB_PATHNAME, JSON.stringify(data), {
-    access: 'public',
+    access: 'private',
     addRandomSuffix: false,
     contentType: 'application/json'
   })
