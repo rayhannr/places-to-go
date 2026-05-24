@@ -155,13 +155,13 @@ export default function ChatPage() {
   }
 
   return (
-    <main className="flex flex-col h-screen max-w-2xl mx-auto w-full px-4 py-5 md:px-6 md:py-6">
+    <main className="flex flex-col h-screen max-w-2xl mx-auto w-full px-4 py-5 md:px-6 md:py-6 overflow-hidden">
       <ChatHeader onLocationClick={handleRequestLocation} />
 
-      <Tabs value={activeTab} onValueChange={handleTabChange} className="flex flex-col flex-1 min-h-0">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="flex flex-col flex-1 min-h-0 overflow-hidden">
         <TabsList className="grid grid-cols-2 h-10 p-1 rounded-xl mb-5 max-w-xs mx-auto w-full glass shrink-0 select-none">
           <TabsTrigger value="chat" className={getTriggerClass('blue')}>
-            💬 Roast Chat
+            💬 Chat
           </TabsTrigger>
           <TabsTrigger value="wheel" className={getTriggerClass('violet')}>
             🎡 Place Wheel
@@ -170,9 +170,9 @@ export default function ChatPage() {
 
         {mounted ? (
           <>
-            <TabsContent value="chat" className="flex flex-col flex-1 min-h-0 outline-none animate-fade-in">
+            <TabsContent value="chat" className="flex flex-col flex-1 min-h-0 outline-none animate-fade-in overflow-hidden">
               {/* ── Messages ── */}
-              <ScrollArea className="flex-1 mb-4 pr-1">
+              <ScrollArea className="flex-1 mb-4 pr-1 min-h-0">
                 <div className="flex flex-col gap-5 pb-2">
                   {/* Empty state */}
                   {typedMessages.length === 0 && <EmptyState onAction={handleSendMessage} disabled={isLoading} />}
@@ -193,8 +193,8 @@ export default function ChatPage() {
               <ChatInput onSendMessage={handleSendMessage} isLoading={isLoading} />
             </TabsContent>
 
-            <TabsContent value="wheel" className="flex flex-col flex-1 min-h-0 outline-none animate-fade-in">
-              <ScrollArea className="flex-1 mb-1 pr-1">
+            <TabsContent value="wheel" className="flex flex-col flex-1 min-h-0 outline-none animate-fade-in overflow-hidden">
+              <ScrollArea className="flex-1 mb-1 pr-1 min-h-0">
                 <div className="pb-3">
                   <WheelOfPlaces />
                 </div>
