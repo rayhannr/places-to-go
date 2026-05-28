@@ -58,7 +58,7 @@ export async function resolveShortLink(url: string): Promise<string> {
 
 export function extractCoords(url: string | null): Coords | null {
   if (!url) return null
-  
+
   // 1. Check for our custom "injected" coordinates in the query string
   try {
     const urlObj = new URL(url)
@@ -83,7 +83,7 @@ export function extractCoords(url: string | null): Coords | null {
   if (m) return { lat: parseFloat(m[1]), lng: parseFloat(m[2]) }
   m = url.match(/@([+-]?\d+\.\d+),([+-]?\d+\.\d+)/)
   if (m) return { lat: parseFloat(m[1]), lng: parseFloat(m[2]) }
-  
+
   return null
 }
 
@@ -156,11 +156,7 @@ export async function normalizeLocationInput(input: string): Promise<{ candidate
   let resolvedUrl = candidate
   try {
     const url = new URL(candidate)
-    if (
-      url.hostname.includes('goo.gl') ||
-      url.hostname.includes('maps.app.goo.gl') ||
-      url.href.includes('google.com/url?q=')
-    ) {
+    if (url.hostname.includes('goo.gl') || url.hostname.includes('maps.app.goo.gl') || url.href.includes('google.com/url?q=')) {
       resolvedUrl = await resolveShortLink(url.href)
     }
   } catch (error) {
@@ -238,7 +234,7 @@ export async function getDistancesBatch(origin: Coords, destinations: Coords[]):
       destinations: chunk.map(({ lat, lng }) => ({
         waypoint: { location: { latLng: { latitude: lat, longitude: lng } } }
       })),
-      travelMode: 'DRIVE',
+      travelMode: 'TWO_WHEELER',
       routingPreference: 'TRAFFIC_UNAWARE'
     }
     try {
@@ -354,9 +350,7 @@ export async function getPlaceDetails(placeId: string): Promise<{ name?: string;
     const data = resp.data
     let city: string | undefined
     if (data.addressComponents) {
-      const cityComp = data.addressComponents.find(
-        c => c.types.includes('locality') || c.types.includes('administrative_area_level_2')
-      )
+      const cityComp = data.addressComponents.find(c => c.types.includes('locality') || c.types.includes('administrative_area_level_2'))
       if (cityComp) city = cleanCityName(cityComp.longText)
     }
 
