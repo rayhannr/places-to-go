@@ -51,6 +51,12 @@
     - Displays a winner modal with place name, city, distance, travel time, and a direct Google Maps link.
 - **AI-Driven Error Recovery**: 
     - Secondary AI call in the Telegram bot to interpret and explain technical errors in persona.
+- **Demo Mode**:
+    - Designed for public or portfolio deployments, separate from the personal instance, without exposing the owner's Google Sheet.
+    - Activated via `DEMO_MODE=true` environment variable.
+    - Replaces all Google Sheets operations with a Vercel Blob-backed in-memory store (`lib/demo-store.ts`), requiring no Google credentials.
+    - Enforces a 75-place cap: oldest entry is automatically dropped when the limit is reached to keep the shared store clean.
+    - Telegram bot is fully disabled in demo mode (returns 403).
 
 ## 3. Tech Stack
 ### Frontend & Bot
@@ -122,6 +128,8 @@ graph TD
 - `TELEGRAM_ALLOWED_USER_ID`: Comma-separated list of IDs allowed to use the bot.
 - `REFERENCE_LAT`: Latitude of your home/base (e.g., -7.7828).
 - `REFERENCE_LNG`: Longitude of your home/base (e.g., 110.3608).
+- `DEMO_MODE`: Set to `true` to use Vercel Blob storage instead of Google Sheets. Telegram bot is disabled in this mode.
+- `BLOB_READ_WRITE_TOKEN`: Vercel Blob token. Required when `DEMO_MODE=true`.
 
 ## 7. Future Roadmap
 - [x] **Telegram Integration**: 24/7 access via chatbot.
