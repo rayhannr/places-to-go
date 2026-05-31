@@ -27,7 +27,7 @@ export function ChatInput({ onSendMessage, isLoading }: ChatInputProps) {
         e.preventDefault()
         submit()
       }}
-      className="relative flex items-center gap-2 shrink-0 animate-fade-up"
+      className="relative flex items-center gap-2 shrink-0 animate-fade-up mx-1 mb-1"
     >
       <Input
         id="chat-input"
