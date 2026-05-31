@@ -28,7 +28,7 @@ bot.on(['message:location', 'edited_message:location'], async ctx => {
 
   // Only reply for initial share, not every live update
   if (ctx.message) {
-    await ctx.reply('Sipp bro, lokasimu udah tak catet! Sekarang kalo tanya jarak dari posisimu, langsung tak hitungin ya.')
+    await ctx.reply('Location locked, bro. Now I know exactly where your ass is.')
   }
 })
 

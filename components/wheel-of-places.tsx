@@ -75,7 +75,7 @@ export function WheelOfPlaces() {
   // Show error toast if the fetch fails
   useEffect(() => {
     if (isError) {
-      toast.error('Gagal load data tempat makan, bro.')
+      toast.error('Couldn\'t load your shit. Server ghosted us, bro.')
     }
   }, [isError])
 
@@ -178,7 +178,7 @@ export function WheelOfPlaces() {
       ctx.font = 'bold 13px var(--font-sans, Outfit, sans-serif)'
       ctx.textAlign = 'center'
       ctx.textBaseline = 'middle'
-      ctx.fillText('List Wheel Kosong, Bro!', cx, cy)
+      ctx.fillText('Nothing to Spin, Bro!', cx, cy)
       ctx.restore()
       return
     }
@@ -331,7 +331,7 @@ export function WheelOfPlaces() {
         return next
       })
 
-      toast.success(`Horee! Ketemu tempat makannya: ${winnerPlace.name}!`, {
+      toast.success(`There you go: ${winnerPlace.name}. Stop overthinking and just go.`, {
         icon: '🎉',
         duration: 4000
       })
@@ -402,7 +402,7 @@ export function WheelOfPlaces() {
 
   const handleResetPicked = () => {
     setPickedIndices(new Set())
-    toast.success('Semua tempat yang dicoret udah dikembaliin ke wheel, bro!')
+    toast.success('All cleared. Back in the game, bro.')
   }
 
   const allFilteredSelected = filteredPlaces.length > 0 && filteredPlaces.every(p => selectedIndices.has(p.index))
@@ -426,10 +426,10 @@ export function WheelOfPlaces() {
 
           <div className="flex flex-col gap-1.5 text-center">
             <h3 className="text-sm font-extrabold uppercase tracking-[0.2em] text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-violet-400">
-              Menghubungkan
+              Connecting
             </h3>
             <p className="text-xs text-zinc-400 max-w-[240px] leading-relaxed">
-              Sedang mengambil list tempat kuliner...
+              Fetching places list...
             </p>
           </div>
         </div>
@@ -447,14 +447,14 @@ export function WheelOfPlaces() {
         <div className="w-full flex items-center justify-between z-10">
           <Badge variant="outline" className="border-blue-200 dark:border-blue-500/25 bg-blue-50 dark:bg-blue-500/5 text-[11px] text-blue-600 dark:text-blue-400">
             <Sparkles className="w-3 h-3 mr-1" />
-            {activePool.length} Tempat Siap Diputar
+            {activePool.length} Places Ready to Spin
           </Badge>
           <Button
             variant="ghost"
             size="icon"
             onClick={() => setSoundEnabled(!soundEnabled)}
             className="w-8 h-8 text-zinc-400 hover:text-zinc-200"
-            title={soundEnabled ? 'Matikan Suara' : 'Aktifkan Suara'}
+            title={soundEnabled ? 'Mute Sound' : 'Unmute Sound'}
           >
             {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4 text-zinc-500" />}
           </Button>
@@ -484,9 +484,9 @@ export function WheelOfPlaces() {
       {/* 🎛️ CONTROL & POOL LIST SECTION ─── */}
       <div className="p-5 rounded-2xl glass flex flex-col gap-4">
         <div className="flex flex-col gap-2">
-          <h2 className="text-sm font-semibold tracking-wide text-foreground">PILIHAN TEMPAT MAKAN</h2>
+          <h2 className="text-sm font-semibold tracking-wide text-foreground">PLACE SELECTION</h2>
           <p className="text-[11px] text-muted-foreground leading-relaxed">
-            Centang tempat yang mau dimasukin ke wheel. Tempat yang udah kepilih bakal dicoret otomatis biar adil.
+            Check the places you want to add to the wheel. Already-picked places will be automatically struck through to keep it fair.
           </p>
         </div>
 
@@ -503,7 +503,7 @@ export function WheelOfPlaces() {
                 : 'text-muted-foreground hover:text-foreground border-border'
             )}
           >
-            Belum Dikunjungi
+            Not Visited
           </Button>
           <Button
             variant="outline"
@@ -516,7 +516,7 @@ export function WheelOfPlaces() {
                 : 'text-muted-foreground hover:text-foreground border-border'
             )}
           >
-            Pernah Dikunjungi
+            Visited
           </Button>
           <Button
             variant="outline"
@@ -529,7 +529,7 @@ export function WheelOfPlaces() {
                 : 'text-muted-foreground hover:text-foreground border-border'
             )}
           >
-            Semua Tempat
+            All Places
           </Button>
         </div>
 
@@ -538,7 +538,7 @@ export function WheelOfPlaces() {
           <div className="relative flex-1">
             <input
               type="text"
-              placeholder="Cari tempat atau kota..."
+              placeholder="Search places or city..."
               value={search}
               onChange={e => setSearch(e.target.value)}
               className="w-full text-xs bg-zinc-100 dark:bg-zinc-950/50 border border-zinc-200 dark:border-zinc-800/80 rounded-xl px-3 py-2 text-foreground dark:text-zinc-200 placeholder-muted-foreground dark:placeholder-zinc-500 focus:outline-none focus:border-zinc-400 dark:focus:border-zinc-700 transition-colors"
@@ -556,7 +556,7 @@ export function WheelOfPlaces() {
               size="icon"
               onClick={handleResetPicked}
               className="w-8 h-8 rounded-xl border border-border dark:border-zinc-800/80 text-muted-foreground hover:text-foreground dark:text-zinc-400 dark:hover:text-zinc-200 shrink-0"
-              title="Reset yang Coret"
+              title="Reset Struck"
             >
               <RotateCcw className="w-3.5 h-3.5" />
             </Button>
@@ -576,12 +576,12 @@ export function WheelOfPlaces() {
               className="border-zinc-300 dark:border-zinc-700"
             />
             <label htmlFor="select-all-places" className="text-muted-foreground hover:text-foreground font-medium cursor-pointer transition-colors">
-              Pilih Semua ({filteredPlaces.length})
+              Select All ({filteredPlaces.length})
             </label>
           </div>
 
           {pickedIndices.size > 0 && (
-            <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">{pickedIndices.size} Dicoret</span>
+            <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">{pickedIndices.size} Struck</span>
           )}
         </div>
 
@@ -589,7 +589,7 @@ export function WheelOfPlaces() {
         <ScrollArea className="h-[210px] pr-1">
           {!filteredPlaces.length ? (
             <div className="flex items-center justify-center h-[180px] text-zinc-600 text-xs font-medium">
-              Nggak nemu tempat yang pas, bro.
+              Nothing found. Try typing better.
             </div>
           ) : (
             <div className="flex flex-col gap-1.5 pb-2">
@@ -630,7 +630,7 @@ export function WheelOfPlaces() {
                         variant="outline"
                         className="border-green-500/20 text-green-500/70 text-[9px] bg-green-500/5 py-0 px-1.5 shrink-0 ml-2"
                       >
-                        Pernah
+                        Visited
                       </Badge>
                     )}
                   </div>
@@ -649,7 +649,7 @@ export function WheelOfPlaces() {
               <Award className="w-8 h-8 text-violet-600 dark:text-violet-400 animate-bounce" />
             </div>
             <DialogTitle className="text-[10px] uppercase tracking-[0.25em] text-violet-600 dark:text-violet-400 font-bold leading-none">
-              TEMPAT PILIHAN WHEEL
+              WHEEL PICK
             </DialogTitle>
             <DialogDescription className="text-xl font-bold tracking-tight text-foreground px-2 mt-1 leading-snug">
               {winner?.name}
@@ -668,7 +668,7 @@ export function WheelOfPlaces() {
                 <div className="grid grid-cols-2 gap-2 w-full p-3 bg-white/70 dark:bg-zinc-900/60 rounded-xl border border-black/[0.04] dark:border-zinc-800/40 text-left">
                   {winner.dist && (
                     <div className="flex flex-col gap-0.5">
-                      <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-semibold">Jarak</span>
+                      <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-semibold">Distance</span>
                       <span className="text-xs font-bold text-foreground flex items-center gap-1">
                         <Compass className="w-3.5 h-3.5 text-blue-500 dark:text-blue-400" />
                         {winner.dist} km
@@ -677,10 +677,10 @@ export function WheelOfPlaces() {
                   )}
                   {winner.time && (
                     <div className="flex flex-col gap-0.5">
-                      <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-semibold">Waktu</span>
+                      <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-semibold">Time</span>
                       <span className="text-xs font-bold text-foreground flex items-center gap-1">
                         <Clock className="w-3.5 h-3.5 text-violet-500 dark:text-violet-400" />
-                        {winner.time} mnt
+                        {winner.time} min
                       </span>
                     </div>
                   )}
@@ -703,7 +703,7 @@ export function WheelOfPlaces() {
                   onClick={() => setShowWinnerModal(false)}
                   className="w-full bg-transparent dark:bg-zinc-900 border border-black/[0.08] dark:border-zinc-800 hover:bg-black/[0.02] dark:hover:bg-zinc-800/80 text-foreground dark:text-zinc-200 font-semibold py-3 rounded-xl transition-all text-xs cursor-pointer"
                 >
-                  OK, MANTAP!
+                  GOT IT, LET'S EAT!
                 </Button>
               </div>
             </>

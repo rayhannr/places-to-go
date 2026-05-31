@@ -24,18 +24,18 @@ export const get_current_location = tool({
       return {
         success: false,
         error: 'GPS_DISABLED',
-        message: 'Wah, GPS-mu kayaknya mati bro atau koordinatmu nggak ketemu. Nyalain dulu GPS-nya terus share lokasimu ya!'
+        message: 'GPS is off or you live in the middle of nowhere, bro. Turn that shit on and share your damn location.'
       }
     }
 
     // Reverse geocode to get a human-readable address
-    let address = 'Lokasi Tidak Diketahui'
+    let address = 'Unknown Location'
     try {
       const resp = await gmapsClient.reverseGeocode({
         params: { latlng: coords, key: GMAPS_API_KEY },
         timeout: 10000
       })
-      address = resp.data.results?.[0]?.formatted_address || 'Lokasi Tidak Diketahui'
+      address = resp.data.results?.[0]?.formatted_address || 'Unknown Location'
     } catch (err) {
       console.error('Reverse geocode error:', err)
     }
@@ -65,7 +65,7 @@ export const sync_all_distances = tool({
   }),
   execute: async ({ userLocation, locationLink, userId, status = 'unvisited', count = 5 }) => {
     let locationToUse = userLocation
-    let sourceLabel = 'lokasi sekarang'
+    let sourceLabel = 'current location'
     let saveSession = true
 
     if (locationLink) {
@@ -75,11 +75,11 @@ export const sync_all_distances = tool({
           success: false,
           error: 'INVALID_CUSTOM_LOCATION',
           message:
-            'Gak bisa baca link lokasi itu, bro. Pastikan itu Google Maps link atau titik koordinat yang valid, terus coba lagi.'
+            'That location link is trash, bro. Send a real Maps link or actual coordinates, damn.'
         }
       }
       locationToUse = customCoords
-      sourceLabel = 'lokasi kustom yang kamu kirim'
+      sourceLabel = 'custom location you sent'
       saveSession = false
     }
 
@@ -87,13 +87,13 @@ export const sync_all_distances = tool({
       return {
         success: false,
         error: 'GPS_DISABLED',
-        message: 'Lokasimu nggak ketemu bro. Share dulu GPS-nya atau kirim link Google Maps lokasi yang jelas.'
+        message: 'Still no idea where you are, bro. Share your GPS or send a proper Maps link, come on.'
       }
     }
 
     const rows = await getRows(SPREADSHEET_ID, TAB_NAME)
     if (rows.length === 0) {
-      return { success: true, updated: false, message: 'List tempatmu masih kosong bro.' }
+      return { success: true, updated: false, message: 'List is empty, bro. Nothing to sync. Go add some places first.' }
     }
 
     const compactPlace = (r: any) => ({
@@ -122,7 +122,7 @@ export const sync_all_distances = tool({
             updated: false,
             count: rows.length,
             nearby: getNearby(),
-            message: `Lokasimu cuma geser ${moveDist.toFixed(2)}km dari sync terakhir. Masih akurat kok datanya.`
+            message: `You barely moved ${moveDist.toFixed(2)}km, bro. Data's still fresh. Chill.`
           }
         }
       }
@@ -139,7 +139,7 @@ export const sync_all_distances = tool({
       updated: true,
       count: rows.length,
       nearby: getNearby(),
-      message: `Mantap! Barusan tak update jarak buat ${rows.length} tempat berdasarkan ${sourceLabel}.`
+      message: `Done. Updated ${rows.length} places from ${sourceLabel}. Happy now?`
     }
   }
 })
@@ -157,7 +157,7 @@ export const parse_place_link = tool({
         success: false,
         error: 'INVALID_PLACE_LINK',
         message:
-          'Gak bisa baca link itu, bro. Pastikan itu Google Maps link atau koordinat yang valid seperti `-7.7828,110.3608`.'
+          'That link is unreadable, bro. Give me a proper Maps link or actual coords like `-7.7828,110.3608`.'
       }
     }
 

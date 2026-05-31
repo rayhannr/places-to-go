@@ -196,7 +196,7 @@ export const add_place = tool({
       return {
         success: true,
         isDuplicate: true,
-        message: 'Tempat ini udah ada di listmu bro, jadi nggak tak tambah lagi biar nggak dobel!'
+        message: 'Already in your damn list, bro. You really think I\'d add it twice?'
       }
     }
 
@@ -235,7 +235,7 @@ export const add_place = tool({
         return {
           success: true,
           isDuplicate: true,
-          message: 'Tempat ini udah ada di listmu bro (ketahuan dari ID tempatnya), jadi nggak tak tambah lagi biar nggak dobel!'
+          message: 'Place ID caught you trying to double-dip, bro. Already in the list.'
         }
       }
     }
@@ -376,7 +376,7 @@ export const delete_place = tool({
     return {
       success: true,
       placeName: finalName,
-      message: `Oke bro, "${finalName}" udah tak hapus permanen dari listmu. Barisnya juga udah tak geser naik biar rapi.`
+      message: `"${finalName}" deleted. Gone. Wiped. Like it never existed.`
     }
   }
 })
