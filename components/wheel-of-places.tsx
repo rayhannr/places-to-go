@@ -296,7 +296,7 @@ export function WheelOfPlaces() {
     if (velocityRef.current > 0.08) {
       velocityRef.current *= 0.95
     } else {
-      velocityRef.current *= 0.915
+      velocityRef.current *= 0.94
     }
 
     pointerWiggleRef.current *= 0.85
