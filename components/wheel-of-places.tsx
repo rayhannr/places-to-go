@@ -55,13 +55,18 @@ export function WheelOfPlaces() {
   const [winner, setWinner] = useState<Place | null>(null)
   const [showWinnerModal, setShowWinnerModal] = useState(false)
 
-  // Canvas Refs
+  // Canvas & Physics Refs
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const angleRef = useRef(0)
   const velocityRef = useRef(0)
   const lastIndexRef = useRef(-1)
   const pointerWiggleRef = useRef(0)
   const requestRef = useRef<number | null>(null)
+  const lastTimestampRef = useRef<number>(0)
+
+  // Friction per 60fps frame. Delta-time scaling keeps wall-clock duration fixed regardless of actual frame rate.
+  const FRICTION = 0.985
+  const STOP_THRESHOLD = 0.0008
 
   // Audio Context Ref
   const audioCtxRef = useRef<AudioContext | null>(null)
@@ -287,26 +292,24 @@ export function WheelOfPlaces() {
   }
 
   // Update physics
-  const updateWheelPhysics = () => {
+  const updateWheelPhysics = (timestamp: number) => {
     if (activePool.length === 0) return
 
-    angleRef.current += velocityRef.current
+    // Delta-time: normalise to 60fps so slow render frames don't stretch the animation
+    const delta = lastTimestampRef.current ? Math.min((timestamp - lastTimestampRef.current) / (1000 / 60), 10) : 1
+    lastTimestampRef.current = timestamp
 
-    // Snappy dynamic friction tuned for a perfect 1.2 second total spin duration
-    if (velocityRef.current > 0.08) {
-      velocityRef.current *= 0.95
-    } else {
-      velocityRef.current *= 0.94
-    }
+    velocityRef.current *= Math.pow(FRICTION, delta)
+    angleRef.current += velocityRef.current * delta
 
-    pointerWiggleRef.current *= 0.85
+    pointerWiggleRef.current *= Math.pow(0.85, delta)
 
     const sliceAngle = (2 * Math.PI) / activePool.length
     const normalizedAngle = (-Math.PI / 2 - angleRef.current) % (2 * Math.PI)
     const positiveAngle = normalizedAngle < 0 ? normalizedAngle + 2 * Math.PI : normalizedAngle
     const currentIndex = Math.floor(positiveAngle / sliceAngle) % activePool.length
 
-    if (currentIndex !== lastIndexRef.current && velocityRef.current > 0.005) {
+    if (currentIndex !== lastIndexRef.current) {
       lastIndexRef.current = currentIndex
       pointerWiggleRef.current = 0.28
       playTickSound()
@@ -314,7 +317,7 @@ export function WheelOfPlaces() {
 
     drawWheel()
 
-    if (velocityRef.current > 0.002) {
+    if (velocityRef.current > STOP_THRESHOLD) {
       requestRef.current = requestAnimationFrame(updateWheelPhysics)
     } else {
       setIsSpinning(false)
@@ -324,7 +327,6 @@ export function WheelOfPlaces() {
       setWinner(winnerPlace)
       setShowWinnerModal(true)
 
-      // AUTOMATICALLY exclude the place in this session so it cannot be selected again!
       setPickedIndices(prev => {
         const next = new Set(prev)
         next.add(winnerPlace.index)
@@ -345,7 +347,10 @@ export function WheelOfPlaces() {
     setIsSpinning(true)
     setWinner(null)
 
-    velocityRef.current = 0.25 + Math.random() * 0.18
+    // Fixed fast launch — friction does all the work from here
+    velocityRef.current = 0.55 + Math.random() * 0.08
+    lastTimestampRef.current = 0
+
     lastIndexRef.current = -1
 
     if (requestRef.current) cancelAnimationFrame(requestRef.current)
