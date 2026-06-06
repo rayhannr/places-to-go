@@ -3,7 +3,7 @@
 An AI-powered personal food tracker that lives in your **browser** and your **Telegram**. Manage your favorite spots, get smart recommendations, and never forget a great meal again.
 
 ![Premium UI](https://img.shields.io/badge/Aesthetic-Midnight%20%26%20Neon-blueviolet)
-![Next.js](https://img.shields.io/badge/Next.js-15-black)
+![Next.js](https://img.shields.io/badge/Next.js-16-black)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue)
 ![Mistral AI](https://img.shields.io/badge/AI-Mistral-orange)
 
@@ -33,16 +33,18 @@ An AI-powered personal food tracker that lives in your **browser** and your **Te
   - `Smart Recalculation`: Only updates your list when you move >2km.
 - **🔔 Sonner Notifications**: High-end toast notifications for real-time status updates.
 - **🎡 Wheel of Places**: Spin an interactive wheel to randomly decide where to eat. Cherry-pick entries, filter by visit status, and search by name or city. Already-picked places are struck through and excluded from subsequent spins.
+- **🔌 Model Context Protocol (MCP)**: Connect your tracker directly to AI clients (like Claude Desktop) via a built-in MCP server endpoint (`/api/mcp`).
 
 ## 🛠️ Tech Stack
 
-- **Framework**: Next.js 15 (App Router)
+- **Framework**: Next.js 16 (App Router)
 - **AI**: Vercel AI SDK v6 + Mistral AI
 - **Bot**: grammY
 - **Database**: Google Sheets API
 - **Geo**: Google Routes API (Distance Matrix v2)
 - **UI Components**: Shadcn UI & Sonner
 - **Styling**: Tailwind CSS 4
+- **MCP**: Model Context Protocol SDK
 
 ## 🚀 Getting Started
 
@@ -86,6 +88,27 @@ npm run dev
 To use the Telegram bot in production or with a tunnel:
 ```bash
 npm run telegram:set-webhook
+```
+
+### 6. Model Context Protocol (MCP) Setup
+You can connect this app directly to MCP-compatible AI clients (such as Claude Desktop) as a remote tool server.
+
+The endpoint is served at `/api/mcp` (disabled when `DEMO_MODE=true`).
+
+#### Claude Desktop Integration
+Add this to your `claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "places-to-go": {
+      "transport": {
+        "type": "sse",
+        "url": "http://localhost:3000/api/mcp"
+      }
+    }
+  }
+}
 ```
 
 ## 📖 Related Documents
