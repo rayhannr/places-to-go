@@ -3,10 +3,18 @@ import { streamText, convertToModelMessages, stepCountIs, type ToolSet } from 'a
 import { AI_CONFIG } from '@/lib/ai/config'
 import { tools } from '@/lib/ai/tools'
 import { wrapToolsWithCache } from '@/lib/ai/tools/dedupe'
+import { checkRequestAuth } from '@/lib/auth'
 
 export const maxDuration = 60
 
 export async function POST(req: Request) {
+  if (!checkRequestAuth(req)) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 401,
+      headers: { 'Content-Type': 'application/json' }
+    })
+  }
+
   try {
     const { messages } = await req.json()
     const lastMessage = messages[messages.length - 1]

@@ -35,11 +35,6 @@ const NEON_COLORS = [
   '#eab308' // Neon Yellow
 ]
 
-async function fetchPlaces(): Promise<Place[]> {
-  const res = await axios.get<Place[]>('/api/places')
-  return res.data
-}
-
 export function WheelOfPlaces() {
   const { resolvedTheme } = useTheme()
   const [filter, setFilter] = useState<'unvisited' | 'visited' | 'all'>('unvisited')
@@ -72,17 +67,27 @@ export function WheelOfPlaces() {
   const audioCtxRef = useRef<AudioContext | null>(null)
 
   // ── React Query data fetching ──────────────────────────────────────────────
-  const { data: places = [], isLoading, isError } = useQuery<Place[]>({
+  const { data: places = [], isLoading, isError, error } = useQuery<Place[]>({
     queryKey: ['places'],
-    queryFn: fetchPlaces,
+    queryFn: async () => {
+      const password = typeof window !== 'undefined' ? localStorage.getItem('app_password') : null
+      const res = await axios.get<Place[]>('/api/places', {
+        headers: password ? { 'x-app-password': password } : {}
+      })
+      return res.data
+    }
   })
 
   // Show error toast if the fetch fails
   useEffect(() => {
     if (isError) {
-      toast.error('Couldn\'t load your shit. Server ghosted us, bro.')
+      if (axios.isAxiosError(error) && error.response?.status === 401) {
+        window.dispatchEvent(new Event('auth-failed'))
+      } else {
+        toast.error('Couldn\'t load your shit. Server ghosted us, bro.')
+      }
     }
-  }, [isError])
+  }, [isError, error])
 
   // Sync selectedIndices with newly fetched data — non-destructively.
   // Only auto-select indices that are brand new (not seen before), keeping

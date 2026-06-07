@@ -2,6 +2,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js'
 import { AI_CONFIG } from '@/lib/ai/config'
 import { tools } from '@/lib/ai/tools'
+import { checkRequestAuth } from '@/lib/auth'
 
 const DEMO_MODE = process.env.DEMO_MODE === 'true'
 
@@ -37,6 +38,9 @@ function createMcpServer() {
 }
 
 async function handleMcpRequest(req: Request): Promise<Response> {
+  if (!checkRequestAuth(req)) {
+    return Response.json({ error: 'Unauthorized' }, { status: 401 })
+  }
   const transport = new WebStandardStreamableHTTPServerTransport({
     sessionIdGenerator: undefined
   })

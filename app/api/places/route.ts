@@ -1,10 +1,15 @@
 import { NextResponse } from 'next/server'
 import { getRows } from '@/lib/googleSheets'
 import { compactPlace, SPREADSHEET_ID, TAB_NAME } from '@/lib/ai/tools/logic'
+import { checkRequestAuth } from '@/lib/auth'
 
 export const dynamic = 'force-dynamic'
 
-export async function GET() {
+export async function GET(req: Request) {
+  if (!checkRequestAuth(req)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   try {
     const rows = await getRows(SPREADSHEET_ID, TAB_NAME)
     const compacted = rows.map((r, i) => ({
