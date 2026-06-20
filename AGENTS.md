@@ -57,6 +57,19 @@
     - Replaces all Google Sheets operations with a Vercel Blob-backed in-memory store (`lib/demo-store.ts`), requiring no Google credentials.
     - Enforces a 75-place cap: oldest entry is automatically dropped when the limit is reached to keep the shared store clean.
     - Telegram bot is fully disabled in demo mode (returns 403).
+- **Per-Tool Rate Limiting**:
+    - Protects Google Maps API calls from runaway AI loops, Telegram webhook replays, or accidental abuse.
+    - Backed by Upstash Redis (`@upstash/ratelimit`) using a sliding window algorithm, keyed by caller IP.
+    - Limits are scoped separately for demo and prod using Redis key namespacing (`ptg:demo:rl:*` vs `ptg:prod:rl:*`), allowing both deployments to share a single Upstash database.
+    - Gracefully degrades to no-op if Upstash env vars are absent (e.g. local dev).
+    - Cache hits (`lib/ai/tools/dedupe.ts`) bypass the limiter entirely so cached results don't consume quota.
+    - Daily limits per tool:
+        - `add_place`: 50/day
+        - `sync_all_distances`: 10/day
+        - `parse_place_link`: 50/day
+        - `search_google_maps`: 100/day
+        - `get_current_location`: 100/day
+        - All other tools (Sheets-only): 500/day
 
 ## 3. Tech Stack
 ### Frontend & Bot
@@ -78,6 +91,7 @@
     - Google Maps Geocoding API
     - Google Maps Places API (Text Search)
     - Google Routes API (Distance Matrix v2)
+- **Rate Limiting**: [Upstash Redis](https://upstash.com/) (`@upstash/ratelimit`)
 - **Deployment**: Vercel
 
 ## 4. Architecture & Data Flow
@@ -114,6 +128,8 @@ graph TD
     - `ai/`:
         - `config.ts`: AI model and system prompt settings.
         - `tools.ts`: Vercel AI SDK tool definitions.
+        - `tools/rate-limit.ts`: Per-tool Upstash rate limiting wrapper.
+        - `tools/dedupe.ts`: Request-scoped tool execution cache.
     - `bot.ts`: Grammy bot instance and message handling logic.
     - `googleSheets.ts`: Google Sheets API wrapper.
 - `scripts/`:
@@ -130,6 +146,8 @@ graph TD
 - `REFERENCE_LNG`: Longitude of your home/base (e.g., 110.3608).
 - `DEMO_MODE`: Set to `true` to use Vercel Blob storage instead of Google Sheets. Telegram bot is disabled in this mode.
 - `BLOB_READ_WRITE_TOKEN`: Vercel Blob token. Required when `DEMO_MODE=true`.
+- `UPSTASH_REDIS_REST_URL`: Upstash Redis REST URL. Required for per-tool rate limiting.
+- `UPSTASH_REDIS_REST_TOKEN`: Upstash Redis REST token. Required for per-tool rate limiting.
 
 ## 7. Future Roadmap
 - [x] **Telegram Integration**: 24/7 access via chatbot.

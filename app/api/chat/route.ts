@@ -3,6 +3,7 @@ import { streamText, convertToModelMessages, stepCountIs, type ToolSet } from 'a
 import { AI_CONFIG } from '@/lib/ai/config'
 import { tools } from '@/lib/ai/tools'
 import { wrapToolsWithCache } from '@/lib/ai/tools/dedupe'
+import { wrapToolsWithRateLimit } from '@/lib/ai/tools/rate-limit'
 import { checkRequestAuth } from '@/lib/auth'
 
 export const maxDuration = 60
@@ -26,8 +27,9 @@ export async function POST(req: Request) {
     const userIdContext = userId ? `\n\n[USER_ID: ${userId}]` : ''
     const dateContext = `\n\n[CURRENT_DATE: ${new Date().toISOString()}]`
 
+    const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() ?? req.headers.get('x-real-ip') ?? 'unknown'
     const requestId = `${userId || 'anon'}-${Date.now()}`
-    const wrappedTools = wrapToolsWithCache(tools as any, requestId)
+    const wrappedTools = wrapToolsWithCache(wrapToolsWithRateLimit(tools as any, ip), requestId)
 
     const result = streamText({
       model: mistral(AI_CONFIG.model),

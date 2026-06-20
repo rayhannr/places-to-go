@@ -34,6 +34,7 @@ An AI-powered personal food tracker that lives in your **browser** and your **Te
 - **🔔 Sonner Notifications**: High-end toast notifications for real-time status updates.
 - **🎡 Wheel of Places**: Spin an interactive wheel to randomly decide where to eat. Cherry-pick entries, filter by visit status, and search by name or city. Already-picked places are struck through and excluded from subsequent spins.
 - **🔌 Model Context Protocol (MCP)**: Connect your tracker directly to AI clients (like Claude Desktop) via a built-in MCP server endpoint (`/api/mcp`).
+- **🛡️ Per-Tool Rate Limiting**: Upstash Redis sliding-window limits protect Google API calls from runaway AI loops or Telegram webhook replays. Separate counters for demo and prod, graceful no-op in local dev.
 
 ## 🛠️ Tech Stack
 
@@ -45,6 +46,7 @@ An AI-powered personal food tracker that lives in your **browser** and your **Te
 - **UI Components**: Shadcn UI & Sonner
 - **Styling**: Tailwind CSS 4
 - **MCP**: Model Context Protocol SDK
+- **Rate Limiting**: Upstash Redis + `@upstash/ratelimit`
 
 ## 🚀 Getting Started
 
@@ -70,6 +72,10 @@ REFERENCE_LNG=your_home_lng
 # Optional: enable demo mode (no Google credentials needed)
 DEMO_MODE=true
 BLOB_READ_WRITE_TOKEN=your_vercel_blob_token
+
+# Optional: Upstash Redis for per-tool rate limiting
+UPSTASH_REDIS_REST_URL=your_upstash_url
+UPSTASH_REDIS_REST_TOKEN=your_upstash_token
 ```
 
 > **Demo Mode**: Designed for public or portfolio deployments where you don't want to expose your personal Google Sheet. When `DEMO_MODE=true`, the app uses Vercel Blob storage instead of Google Sheets — no Google credentials required. The Telegram bot is disabled and a 75-place limit is enforced to keep the shared store clean.
