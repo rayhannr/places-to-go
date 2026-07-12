@@ -29,9 +29,17 @@ export async function syncLiveDistancesIfNeeded(
   if (!userLocation) return rows
   if (rows.length === 0) return rows
 
-  const firstRow = rows[0]
-  const storedDist = firstRow['Distance (from current location)']
-  const firstCoords = extractCoords(firstRow.Link)
+  // Only sync unvisited places — visited ones are unlikely to be revisited and
+  // keeping them out cuts Routes API elements proportionally to visits accumulated.
+  const unvisited = rows
+    .map((r, i) => ({ row: r, originalIndex: i }))
+    .filter(({ row }) => !row['Date Visited'])
+
+  if (unvisited.length === 0) return rows
+
+  const firstUnvisited = unvisited[0].row
+  const storedDist = firstUnvisited['Distance (from current location)']
+  const firstCoords = extractCoords(firstUnvisited.Link)
 
   const needsInitialization = storedDist === null || storedDist === undefined || storedDist === ''
 
@@ -53,27 +61,27 @@ export async function syncLiveDistancesIfNeeded(
   }
 
   if (shouldUpdate) {
-    console.log(`[Sync] Recalculating distances for ${rows.length} rows...`)
+    console.log(`[Sync] Recalculating distances for ${unvisited.length} unvisited rows (${rows.length - unvisited.length} visited skipped)...`)
 
     // Resolve short links and find coordinates (with geocode fallback)
     const resolvedRows = await Promise.all(
-      rows.map(async (r, index) => {
+      unvisited.map(async ({ row: r, originalIndex }) => {
         const link = r.Link || ''
         const name = r.Name || ''
         const city = r.City || ''
-        
+
         const needsResolve = link.includes('maps.app.goo.gl') || link.includes('goo.gl/maps')
         const fullUrl = needsResolve ? await resolveShortLink(link) : link
-        
+
         let coords = extractCoords(fullUrl)
-        
+
         // Last Resort: Geocode by Name + City if link is still coord-less
         if (!coords && name) {
           console.log(`[Sync] Last resort: Geocoding "${name}, ${city}"`)
           coords = await coordsFromPlaceName(`${name}, ${city}`)
         }
 
-        return { ...r, resolvedLink: fullUrl, coords, originalIndex: index }
+        return { ...r, resolvedLink: fullUrl, coords, originalIndex }
       })
     )
 
