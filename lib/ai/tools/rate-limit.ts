@@ -1,6 +1,6 @@
 import { Ratelimit } from '@upstash/ratelimit'
-import { Redis } from '@upstash/redis'
 import type { Tool } from 'ai'
+import { getRedis } from '../../redis'
 
 type LimitConfig = { requests: number; window: `${number} ${'s' | 'm' | 'h' | 'd'}` }
 
@@ -31,15 +31,7 @@ const DEFAULT_LIMIT: LimitConfig = { requests: 500, window: '1 d' }
 
 const IS_DEMO = process.env.DEMO_MODE === 'true'
 
-let redis: Redis | null = null
 const limiters = new Map<string, Ratelimit>()
-
-function getRedis(): Redis | null {
-  if (redis) return redis
-  if (!process.env.UPSTASH_REDIS_REST_URL || !process.env.UPSTASH_REDIS_REST_TOKEN) return null
-  redis = Redis.fromEnv()
-  return redis
-}
 
 const TOOL_LIMITS = IS_DEMO ? DEMO_TOOL_LIMITS : PROD_TOOL_LIMITS
 

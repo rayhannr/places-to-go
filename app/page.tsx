@@ -19,7 +19,7 @@ import { useAppAuth } from '@/hooks/use-app-auth'
 import { Message } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
-const MUTATING_TOOLS = new Set(['add_place', 'visit_place', 'delete_place'])
+const MUTATING_TOOLS = new Set(['add_place', 'visit_place', 'delete_place', 'prioritize_place'])
 
 export default function ChatPage() {
   const bottomRef = useRef<HTMLDivElement>(null)

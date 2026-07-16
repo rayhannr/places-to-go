@@ -21,7 +21,9 @@ function ToolPartView({ part }: { part: ToolPart }) {
     get_random_places: 'Picking a random place…',
     get_places_by_city: 'Fetching places by city…',
     search_places_by_name: 'Searching your places…',
-    search_google_maps: 'Searching Google Maps…'
+    search_google_maps: 'Searching Google Maps…',
+    get_priority_places: 'Fetching your priority list…',
+    prioritize_place: 'Updating priority…'
   }
 
   const getStatusText = () => statusTextMap[toolName] ?? 'Fetching your places…'
@@ -93,6 +95,13 @@ function ToolPartView({ part }: { part: ToolPart }) {
         }
         return renderSuccess(<>Deleted "{name}" from tracker</>)
       }
+      case 'prioritize_place': {
+        const name = output?.placeName ?? 'place'
+        if (!output?.success) {
+          return renderError(output?.message || `Failed to prioritize "${name}"`)
+        }
+        return renderSuccess(`Set "${name}" to priority ${output?.priority}`)
+      }
       case 'parse_place_link': {
         if (!output?.success) {
           return renderError(output?.message || 'Failed to parse the place link.')
@@ -113,6 +122,8 @@ function ToolPartView({ part }: { part: ToolPart }) {
       case 'get_places_by_city':
         return renderPlaceListResult(output, 'Found')
       case 'search_places_by_name':
+        return renderPlaceListResult(output, 'Found')
+      case 'get_priority_places':
         return renderPlaceListResult(output, 'Found')
       case 'search_google_maps': {
         const count = output?.length ?? 0

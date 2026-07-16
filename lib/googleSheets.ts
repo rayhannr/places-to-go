@@ -10,21 +10,39 @@ import {
   demoDeleteRow,
   demoUpdatePriorities
 } from './demo-store'
+import { getRedis } from './redis'
 export type { PlaceRow } from './types'
 
 const DEMO_MODE = process.env.DEMO_MODE === 'true'
 
 import type { PlaceRow } from './types'
 
-interface CacheEntry {
-  rows: PlaceRow[]
-  expiresAt: number
+// ─── Constants ───────────────────────────────────────────────────────────────
+const ROWS_CACHE_TTL_SECS = 5 * 60 // 5 minutes for the Redis-backed row cache
+const ROWS_CACHE_PREFIX = 'ptg:sheets:rows:'
+const SESSION_TTL = 60 * 60 * 1000 // 1 hour for chat history session
+
+/**
+ * Row cache backed by Upstash Redis, shared across all serverless instances.
+ * No-ops (always a cache miss) if Upstash env vars are absent, e.g. local dev.
+ */
+async function getCachedRows(key: string): Promise<PlaceRow[] | null> {
+  const redis = getRedis()
+  if (!redis) return null
+  return redis.get<PlaceRow[]>(`${ROWS_CACHE_PREFIX}${key}`)
 }
 
-// ─── Constants ───────────────────────────────────────────────────────────────
-const TTL_MS = 5 * 60 * 1000 // 5 minutes for in-memory row cache
-const SESSION_TTL = 60 * 60 * 1000 // 1 hour for chat history session
-const cache = new Map<string, CacheEntry>()
+async function setCachedRows(key: string, rows: PlaceRow[]): Promise<void> {
+  const redis = getRedis()
+  if (!redis) return
+  await redis.set(`${ROWS_CACHE_PREFIX}${key}`, rows, { ex: ROWS_CACHE_TTL_SECS })
+}
+
+async function invalidateRowsCache(key: string): Promise<void> {
+  const redis = getRedis()
+  if (!redis) return
+  await redis.del(`${ROWS_CACHE_PREFIX}${key}`)
+}
 
 /**
  * Get an authenticated Google Sheets client.
@@ -51,11 +69,8 @@ export async function getRows(spreadsheetId: string, tabName: string): Promise<P
   if (DEMO_MODE) return demoGetRows(spreadsheetId, tabName)
 
   const key = `${spreadsheetId}::${tabName}`
-  const cached = cache.get(key)
-
-  if (cached && Date.now() < cached.expiresAt) {
-    return cached.rows
-  }
+  const cached = await getCachedRows(key)
+  if (cached) return cached
 
   const sheets = await getSheetsClient()
   const response = await sheets.spreadsheets.values.get({
@@ -75,7 +90,7 @@ export async function getRows(spreadsheetId: string, tabName: string): Promise<P
     return obj as PlaceRow
   })
 
-  cache.set(key, { rows: parsed, expiresAt: Date.now() + TTL_MS })
+  await setCachedRows(key, parsed)
   return parsed
 }
 
@@ -97,7 +112,7 @@ export async function appendRow(spreadsheetId: string, tabName: string, values: 
 
   // Invalidate cache
   const key = `${spreadsheetId}::${tabName}`
-  cache.delete(key)
+  await invalidateRowsCache(key)
 }
 
 /**
@@ -123,7 +138,7 @@ export async function updateLiveDistances(
   } as any)
 
   const key = `${spreadsheetId}::${tabName}`
-  cache.delete(key)
+  await invalidateRowsCache(key)
 }
 
 /**
@@ -149,7 +164,7 @@ export async function updateSheetLinks(
   } as any)
 
   const key = `${spreadsheetId}::${tabName}`
-  cache.delete(key)
+  await invalidateRowsCache(key)
 }
 
 /**
@@ -275,7 +290,7 @@ export async function updateVisitDate(
   } as any)
 
   const key = `${spreadsheetId}::${tabName}`
-  cache.delete(key)
+  await invalidateRowsCache(key)
 }
 
 /**
@@ -304,7 +319,7 @@ export async function updatePriorities(
   } as any)
 
   const key = `${spreadsheetId}::${tabName}`
-  cache.delete(key)
+  await invalidateRowsCache(key)
 }
 
 /**
@@ -353,6 +368,6 @@ export async function deleteRow(
 
   // Invalidate cache
   const key = `${spreadsheetId}::${tabName}`
-  cache.delete(key)
+  await invalidateRowsCache(key)
 }
 

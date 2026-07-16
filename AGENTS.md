@@ -28,7 +28,7 @@
 - **Delete Capability (`delete_place`)**:
     - Completely remove a place's entire row from the Google Sheet.
     - Automatically shifts up all rows below the deleted place.
-    - Clears all in-memory caches to ensure real-time consistency.
+    - Invalidates the shared Redis row cache to ensure real-time consistency.
     - Uses fuzzy matching to find the correct place by name.
     - If the deleted place had a priority rank, the remaining priority list is automatically renumbered to close the gap.
 - **Priority Queue (`get_priority_places`, `prioritize_place`)**:
@@ -67,6 +67,11 @@
     - Replaces all Google Sheets operations with a Vercel Blob-backed in-memory store (`lib/demo-store.ts`), requiring no Google credentials.
     - Enforces a 75-place cap: oldest entry is automatically dropped when the limit is reached to keep the shared store clean.
     - Telegram bot is fully disabled in demo mode (returns 403).
+- **Shared Row Cache**:
+    - `getRows()` caches parsed sheet rows in Upstash Redis (`ptg:sheets:rows:*`, 5-minute TTL) instead of per-instance memory, so cache hits are consistent across all serverless invocations rather than tied to whichever warm Vercel instance handled the request.
+    - Every write path (`appendRow`, `updateLiveDistances`, `updateSheetLinks`, `updateVisitDate`, `updatePriorities`, `deleteRow`) invalidates the cached key immediately after writing.
+    - Shares the same Upstash client as rate limiting (`lib/redis.ts`); gracefully degrades to always-fetch-from-Sheets if Upstash env vars are absent (e.g. local dev).
+    - Only used in prod (Google Sheets) mode — demo mode reads/writes Vercel Blob directly and never touches this cache.
 - **Per-Tool Rate Limiting**:
     - Protects Google Maps API calls from runaway AI loops, Telegram webhook replays, or accidental abuse.
     - Backed by Upstash Redis (`@upstash/ratelimit`) using a sliding window algorithm, keyed by caller IP.
@@ -141,7 +146,8 @@ graph TD
         - `tools/rate-limit.ts`: Per-tool Upstash rate limiting wrapper.
         - `tools/dedupe.ts`: Request-scoped tool execution cache.
     - `bot.ts`: Grammy bot instance and message handling logic.
-    - `googleSheets.ts`: Google Sheets API wrapper.
+    - `googleSheets.ts`: Google Sheets API wrapper (rows cached in Redis).
+    - `redis.ts`: Shared Upstash Redis client used by rate limiting and the row cache.
 - `scripts/`:
     - `set-webhook.ts`: Helper script to configure Telegram webhook.
 
