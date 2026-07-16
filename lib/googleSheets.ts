@@ -7,7 +7,8 @@ import {
   demoGetChatSession,
   demoSaveChatSession,
   demoUpdateVisitDate,
-  demoDeleteRow
+  demoDeleteRow,
+  demoUpdatePriorities
 } from './demo-store'
 export type { PlaceRow } from './types'
 
@@ -270,6 +271,35 @@ export async function updateVisitDate(
     valueInputOption: 'USER_ENTERED',
     requestBody: {
       values: [[date]]
+    }
+  } as any)
+
+  const key = `${spreadsheetId}::${tabName}`
+  cache.delete(key)
+}
+
+/**
+ * Batch update the "Priority" column (Column I) for a scattered set of rows.
+ * Pass an empty string as priority to clear a cell.
+ */
+export async function updatePriorities(
+  spreadsheetId: string,
+  tabName: string,
+  updates: { rowIndex: number; priority: number | string }[]
+): Promise<void> {
+  if (DEMO_MODE) return demoUpdatePriorities(spreadsheetId, tabName, updates)
+  if (updates.length === 0) return
+
+  const sheets = await getSheetsClient()
+
+  await sheets.spreadsheets.values.batchUpdate({
+    spreadsheetId,
+    requestBody: {
+      valueInputOption: 'USER_ENTERED',
+      data: updates.map(u => ({
+        range: `${tabName}!I${u.rowIndex}`,
+        values: [[u.priority]]
+      }))
     }
   } as any)
 

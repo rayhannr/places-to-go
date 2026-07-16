@@ -1,7 +1,16 @@
 import { tool } from 'ai'
 import { z } from 'zod'
-import { getRows, appendRow, updateVisitDate, deleteRow } from '../../googleSheets'
-import { compactPlace, syncLiveDistancesIfNeeded, filterByStatus, fuzzySearchPlaces, SPREADSHEET_ID, TAB_NAME } from './logic'
+import { getRows, appendRow, updateVisitDate, deleteRow, updatePriorities } from '../../googleSheets'
+import {
+  compactPlace,
+  syncLiveDistancesIfNeeded,
+  filterByStatus,
+  fuzzySearchPlaces,
+  getPrioritizedEntries,
+  buildPriorityUpdates,
+  SPREADSHEET_ID,
+  TAB_NAME
+} from './logic'
 import {
   Coords,
   resolveShortLink,
@@ -74,8 +83,8 @@ export const get_nearby_places = tool({
     }
     const filtered = filterByStatus(allRows, status)
     const sorted = [...filtered].sort((a, b) => {
-      const distA = parseFloat((userLocation ? a['Distance (from current location)'] : a['Distance (km)'] || a.distKm) || (Infinity as any))
-      const distB = parseFloat((userLocation ? b['Distance (from current location)'] : b['Distance (km)'] || b.distKm) || (Infinity as any))
+      const distA = parseFloat((userLocation ? a['Distance (from current location)'] : a['Distance (km)']) || (Infinity as any))
+      const distB = parseFloat((userLocation ? b['Distance (from current location)'] : b['Distance (km)']) || (Infinity as any))
       return distA - distB
     })
     return sorted.slice(0, Math.min(count, 10)).map(r => compactPlace(r, !!userLocation))
@@ -104,12 +113,8 @@ export const get_quickest_places = tool({
     }
     const filtered = filterByStatus(allRows, status)
     const sorted = [...filtered].sort((a, b) => {
-      const timeA = parseFloat(
-        (userLocation ? a['Travel Time (from current location)'] : a['Travel Time (min)'] || a.travelMin) || (Infinity as any)
-      )
-      const timeB = parseFloat(
-        (userLocation ? b['Travel Time (from current location)'] : b['Travel Time (min)'] || b.travelMin) || (Infinity as any)
-      )
+      const timeA = parseFloat((userLocation ? a['Travel Time (from current location)'] : a['Travel Time (min)']) || (Infinity as any))
+      const timeB = parseFloat((userLocation ? b['Travel Time (from current location)'] : b['Travel Time (min)']) || (Infinity as any))
       return timeA - timeB
     })
     return sorted.slice(0, Math.min(count, 10)).map(r => compactPlace(r, !!userLocation))
@@ -341,6 +346,13 @@ export const visit_place = tool({
       }
     }
 
+    // Visited places don't belong on the "go next" priority list — clear it and close the gap.
+    const oldPriority = parseInt(String(bestMatch.row.Priority ?? ''), 10)
+    if (!isNaN(oldPriority) && oldPriority > 0) {
+      const others = getPrioritizedEntries(allRows, bestMatch.index)
+      await updatePriorities(SPREADSHEET_ID, TAB_NAME, [...buildPriorityUpdates(others), { rowIndex: bestMatch.index, priority: '' }])
+    }
+
     return {
       success: true,
       placeName: finalName,
@@ -370,13 +382,101 @@ export const delete_place = tool({
       }
     }
 
+    const oldPriority = parseInt(String(bestMatch.row.Priority ?? ''), 10)
+    const hadPriority = !isNaN(oldPriority) && oldPriority > 0
+
     await deleteRow(SPREADSHEET_ID, TAB_NAME, bestMatch.index)
+
+    if (hadPriority) {
+      // Row is gone, so row indices below it shifted up — re-fetch fresh indices before renumbering.
+      const freshRows = await getRows(SPREADSHEET_ID, TAB_NAME)
+      const updates = buildPriorityUpdates(getPrioritizedEntries(freshRows))
+      if (updates.length > 0) {
+        await updatePriorities(SPREADSHEET_ID, TAB_NAME, updates)
+      }
+    }
 
     const finalName = bestMatch.row.Name
     return {
       success: true,
       placeName: finalName,
       message: `"${finalName}" deleted. Gone. Wiped. Like it never existed.`
+    }
+  }
+})
+
+export const get_priority_places = tool({
+  description:
+    'Get places from the "want to go next" priority list, sorted by rank ascending (priority 1 = go there first). Only returns places that actually have a priority set.',
+  inputSchema: z.object({
+    count: z.number().optional().default(10).describe('Number of places to return (1-20)')
+  }),
+  execute: async ({ count = 10 }: { count?: number }) => {
+    const allRows = await getRows(SPREADSHEET_ID, TAB_NAME)
+    const entries = getPrioritizedEntries(allRows)
+
+    return entries.slice(0, Math.min(count, 20)).map(p => ({
+      ...compactPlace(allRows[p.index - 2]),
+      priority: p.priority
+    }))
+  }
+})
+
+export const prioritize_place = tool({
+  description:
+    'Set or update a place\'s rank on the "want to go next" priority list. Lower numbers mean higher priority (1 = go there first). Omit the priority to send the place to the back of the list. Automatically shifts other prioritized places to keep ranks contiguous.',
+  inputSchema: z.object({
+    name: z.string().describe('The name of the place to prioritize'),
+    priority: z
+      .number()
+      .int()
+      .positive()
+      .optional()
+      .describe('Desired priority rank (1 = highest). Omit to send it to the back of the priority list.')
+  }),
+  execute: async ({ name, priority }: { name: string; priority?: number }) => {
+    const allRows = await getRows(SPREADSHEET_ID, TAB_NAME)
+
+    // Find the best match using fuzzy search
+    const results = fuzzySearchPlaces(allRows, name)
+    const bestMatch = results[0]
+
+    // Threshold for matching: if the score is too high, it's likely not a match
+    if (!bestMatch || bestMatch.score > 5) {
+      return {
+        success: false,
+        message: `Shit man, there is no place named "${name}" in your fucking list. You high or something?`
+      }
+    }
+
+    const finalName = bestMatch.row.Name
+
+    if (bestMatch.row['Date Visited']) {
+      return {
+        success: false,
+        message: `Bruh, you already went to "${finalName}". Why the hell are you trying to prioritize a place you already conquered? Get your priorities straight, literally.`
+      }
+    }
+
+    const others = getPrioritizedEntries(allRows, bestMatch.index)
+    const insertAt = !priority || priority > others.length ? others.length : priority - 1
+
+    const finalOrder = [
+      ...others.slice(0, insertAt),
+      { index: bestMatch.index, name: finalName, priority: 0 },
+      ...others.slice(insertAt)
+    ]
+
+    await updatePriorities(SPREADSHEET_ID, TAB_NAME, buildPriorityUpdates(finalOrder))
+
+    const finalPriority = insertAt + 1
+
+    return {
+      success: true,
+      placeName: finalName,
+      priority: finalPriority,
+      priorityList: finalOrder.map((p, i) => ({ name: p.name, priority: i + 1 })),
+      message: `"${finalName}" locked in at priority ${finalPriority}.`
     }
   }
 })

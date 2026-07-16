@@ -6,10 +6,8 @@ export const SPREADSHEET_ID = process.env.SPREADSHEET_ID!
 export const TAB_NAME = 'Food'
 
 export function compactPlace(r: PlaceRow, useLive = false) {
-  const dist = useLive ? r['Distance (from current location)'] || r['Distance (km)'] || r.distKm : r['Distance (km)'] || r.distKm
-  const time = useLive
-    ? r['Travel Time (from current location)'] || r['Travel Time (min)'] || r.travelMin
-    : r['Travel Time (min)'] || r.travelMin
+  const dist = useLive ? r['Distance (from current location)'] || r['Distance (km)'] : r['Distance (km)']
+  const time = useLive ? r['Travel Time (from current location)'] || r['Travel Time (min)'] : r['Travel Time (min)']
 
   return {
     name: r.Name,
@@ -150,6 +148,36 @@ export async function syncLiveDistancesIfNeeded(
 
 export function filterByStatus(rows: PlaceRow[], status: 'visited' | 'unvisited') {
   return rows.filter(r => (status === 'visited' ? !!r['Date Visited'] : !r['Date Visited']))
+}
+
+interface PriorityEntry {
+  index: number // 1-based sheet row
+  name: string
+  priority: number
+}
+
+/**
+ * Rows carrying a valid Priority value, sorted ascending (1 = highest priority).
+ * Pass excludeIndex to leave a specific row (e.g. the one being re-prioritized) out of the ordering.
+ */
+export function getPrioritizedEntries(rows: PlaceRow[], excludeIndex?: number): PriorityEntry[] {
+  return rows
+    .map((r, i) => ({ index: i + 2, name: r.Name, priority: parseInt(String(r.Priority ?? ''), 10) }))
+    .filter(p => p.index !== excludeIndex && !isNaN(p.priority) && p.priority > 0)
+    .sort((a, b) => a.priority - b.priority)
+}
+
+/**
+ * Diff an ordered list of priority entries against sequential ranks (1..N),
+ * returning only the sheet writes actually needed to close gaps / apply the new order.
+ */
+export function buildPriorityUpdates(entries: PriorityEntry[]): { rowIndex: number; priority: number }[] {
+  const updates: { rowIndex: number; priority: number }[] = []
+  entries.forEach((p, i) => {
+    const newPriority = i + 1
+    if (p.priority !== newPriority) updates.push({ rowIndex: p.index, priority: newPriority })
+  })
+  return updates
 }
 
 /**

@@ -10,7 +10,7 @@ export interface Coords {
   lng: number
 }
 
-export interface DistanceMatrixResult {
+interface DistanceMatrixResult {
   originIndex?: number
   destinationIndex?: number
   distanceMeters?: number
@@ -145,7 +145,7 @@ export async function coordsFromPlaceName(placeName: string): Promise<Coords | n
   return null
 }
 
-export async function normalizeLocationInput(input: string): Promise<{ candidate: string; resolvedUrl: string }> {
+async function normalizeLocationInput(input: string): Promise<{ candidate: string; resolvedUrl: string }> {
   let candidate = input.trim()
   if (!candidate.match(/^https?:\/\//i)) {
     if (candidate.match(/^(maps\.|www\.|google\.com|goo\.gl|maps\.app\.goo\.gl)/i)) {
@@ -277,7 +277,7 @@ export function parseDurationSecs(duration: string | { seconds: string } | undef
   return null
 }
 
-export interface GmapsPlace {
+interface GmapsPlace {
   name?: string
   formatted_address?: string
   place_id?: string

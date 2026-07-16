@@ -30,6 +30,16 @@
     - Automatically shifts up all rows below the deleted place.
     - Clears all in-memory caches to ensure real-time consistency.
     - Uses fuzzy matching to find the correct place by name.
+    - If the deleted place had a priority rank, the remaining priority list is automatically renumbered to close the gap.
+- **Priority Queue (`get_priority_places`, `prioritize_place`)**:
+    - Tracks which unvisited places to go to next, using the `Priority` column (Column I) — smaller number means higher priority.
+    - `get_priority_places` returns only places that have a priority set, sorted ascending by rank, so the agent never has to read the full tracker to answer "what's next?".
+    - `prioritize_place` sets or updates a place's rank by name (fuzzy matched):
+        - Omitting a priority, or giving one beyond the current lowest rank, sends the place to the back of the queue (current max + 1).
+        - Giving a priority within the existing range inserts the place there and shifts every place at or below that rank down by one, keeping ranks contiguous (1..N).
+        - Re-prioritizing a place that's already ranked pulls it out of its current slot and reinserts it at the new position — this only rewrites Priority cell values, it never touches or reorders rows.
+        - Refuses (with a roast) if the place doesn't exist, or if it's already marked visited — visited places can't be prioritized.
+    - Marking a prioritized place as visited (`visit_place`) automatically clears its rank and renumbers the rest of the queue.
 - **Location Tools**:
     - **`get_current_location`**: Reverse-geocodes user GPS coordinates to a human-readable address and persists to session.
     - **`sync_all_distances`**: Force-recalculates distances and travel times for all places from the user's GPS or a custom Maps link. Respects the 2km rule when syncing from GPS.

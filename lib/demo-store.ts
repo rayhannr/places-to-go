@@ -63,7 +63,8 @@ export async function demoAppendRow(_spreadsheetId: string, _tabName: string, va
     'Travel Time (min)': values[4] ?? null,
     'Date Visited': (values[5] as string) || null,
     'Distance (from current location)': values[6] ?? null,
-    'Travel Time (from current location)': values[7] ?? null
+    'Travel Time (from current location)': values[7] ?? null,
+    Priority: null
   }
   data.places.push(row)
   await writeData(data)
@@ -105,6 +106,21 @@ export async function demoUpdateVisitDate(
   if (data.places[arrayIndex]) {
     data.places[arrayIndex]['Date Visited'] = date || null
   }
+  await writeData(data)
+}
+
+export async function demoUpdatePriorities(
+  _spreadsheetId: string,
+  _tabName: string,
+  updates: { rowIndex: number; priority: number | string }[] // 1-based sheet row; array index = rowIndex - 2
+): Promise<void> {
+  const data = await readData()
+  updates.forEach(u => {
+    const arrayIndex = u.rowIndex - 2
+    if (data.places[arrayIndex]) {
+      data.places[arrayIndex].Priority = u.priority || null
+    }
+  })
   await writeData(data)
 }
 

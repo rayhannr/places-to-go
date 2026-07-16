@@ -26,6 +26,10 @@ An AI-powered personal food tracker that lives in your **browser** and your **Te
 - **🗑️ Delete Capability**:
   - Delete places permanently from your tracker.
   - Automatically shifts up subsequent rows in Google Sheets to keep it clean.
+- **🔢 Priority Queue**:
+  - Rank the places you want to go to next (1 = go there first).
+  - Insert a place at any rank and the rest automatically shift to stay contiguous.
+  - Visiting or deleting a prioritized place automatically clears its rank and renumbers the queue.
 - **🌌 Midnight & Neon UI**: A sleek, high-contrast dark theme with glassmorphism.
 - **📍 Real-time Geolocation**: 
   - Web: One-click "Go Live" location tracking.

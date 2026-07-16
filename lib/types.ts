@@ -7,14 +7,7 @@ export interface PlaceRow {
   'Date Visited': string | null
   'Distance (from current location)': string | number | null
   'Travel Time (from current location)': string | number | null
-  // Support for lowercase keys if they exist in legacy code
-  name?: string
-  city?: string
-  link?: string
-  distKm?: string | number
-  travelMin?: string | number
-  lat?: number
-  lng?: number
+  Priority: string | number | null
 }
 
 export type ToolPart = {
@@ -33,7 +26,7 @@ export type ToolPart = {
   } | null
 }
 
-export type MessagePart = { type: 'text'; text: string } | ToolPart
+type MessagePart = { type: 'text'; text: string } | ToolPart
 
 export type Message = {
   id: string
