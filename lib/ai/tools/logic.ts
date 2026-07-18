@@ -192,7 +192,7 @@ export function findPlaceByName(rows: PlaceRow[], name: string) {
 }
 
 export function placeNotFoundMessage(name: string): string {
-  return `Shit man, there is no place named "${name}" in your fucking list. You high or something?`
+  return `Bro "${name}" doesn't even exist in your list. You out here hallucinating places or what?`
 }
 
 /**

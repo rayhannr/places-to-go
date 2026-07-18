@@ -40,10 +40,10 @@ function ToolPartView({ part }: { part: ToolPart }) {
     switch (toolName) {
       case 'add_place': {
         if (output?.isDuplicate) {
-          return renderError(output?.message || 'Already on the list, genius')
+          return renderError(output?.message || "Already on the list, dumbass")
         }
         const name = output?.entry?.name ?? 'place'
-        return renderSuccess(<>"{name}" is in. Locked and loaded.</>)
+        return renderSuccess(<>"{name}" is in. Let's fucking go.</>)
       }
       case 'get_current_location': {
         if (!output?.success) {
@@ -68,16 +68,16 @@ function ToolPartView({ part }: { part: ToolPart }) {
           return renderError(output?.message || `Couldn't mark "${name}" visited`)
         }
         if (!output?.visitDate) {
-          return renderSuccess(<>Wiped the visit date for "{name}"</>)
+          return renderSuccess(<>Wiped the visit date for "{name}", never happened</>)
         }
-        return renderSuccess(<>"{name}" marked visited on {date}. Nice.</>)
+        return renderSuccess(<>"{name}" marked visited on {date}. Hell yeah.</>)
       }
       case 'delete_place': {
         const name = output?.placeName ?? 'place'
         if (!output?.success) {
           return renderError(output?.message || `Couldn't delete "${name}"`)
         }
-        return renderSuccess(<>"{name}" is toast. Deleted.</>)
+        return renderSuccess(<>"{name}" is deleted. Gone. Poof.</>)
       }
       case 'prioritize_place': {
         const name = output?.placeName ?? 'place'

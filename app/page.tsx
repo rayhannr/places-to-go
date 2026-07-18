@@ -69,13 +69,13 @@ export default function ChatPage() {
     lastErrorRef.current = errorMessage
 
     if (errorMessage.includes('429') || errorMessage.includes('rate limit') || errorMessage.includes('too many')) {
-      toast.error("Slow your roll, you're spamming me. Try again in a sec.")
+      toast.error("Chill the fuck out, you're spamming me. Try again in a sec.")
     } else if (errorMessage.includes('401') || errorMessage.includes('unauthorized')) {
       window.dispatchEvent(new Event('auth-failed'))
     } else if (errorMessage.includes('500') || errorMessage.includes('server error')) {
-      toast.error('Something broke on my end. Try again in a bit.')
+      toast.error('Shit broke on my end. Try again in a bit.')
     } else {
-      toast.error(`Shit broke: ${errorMessage}`)
+      toast.error(`Something broke: ${errorMessage}`)
     }
   }, [error])
 

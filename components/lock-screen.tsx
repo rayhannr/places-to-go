@@ -22,11 +22,11 @@ export function LockScreen({ onUnlock }: LockScreenProps) {
       if (success) {
         setInput('')
       } else {
-        toast.error('Nope, wrong password. Try again.')
+        toast.error("Nah that's wrong. Try again.")
         setInput('')
       }
     } catch {
-      toast.error("Couldn't check that password. Try again.")
+      toast.error("Couldn't check that shit. Try again.")
     } finally {
       setIsVerifying(false)
     }
@@ -45,7 +45,7 @@ export function LockScreen({ onUnlock }: LockScreenProps) {
 
           <div className="flex flex-col items-center gap-1.5 text-center">
             <h1 className="text-lg font-black tracking-tight">Places to Go</h1>
-            <p className="text-xs text-muted-foreground">Password, or you're not getting in.</p>
+            <p className="text-xs text-muted-foreground">Password, or you ain't getting in.</p>
           </div>
 
           <form onSubmit={handleSubmit} className="w-full flex flex-col gap-3">

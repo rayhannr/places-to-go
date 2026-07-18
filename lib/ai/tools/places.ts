@@ -248,7 +248,7 @@ export const add_place = tool({
       return {
         success: true,
         isDuplicate: true,
-        message: 'Already in your damn list, bro. You really think I\'d add it twice?'
+        message: 'Bro that\'s already on the list. You think I wasn\'t gonna catch that?'
       }
     }
 
@@ -287,7 +287,7 @@ export const add_place = tool({
         return {
           success: true,
           isDuplicate: true,
-          message: 'Place ID caught you trying to double-dip, bro. Already in the list.'
+          message: 'Nah the place ID snitched on you. Already in the list, nice try though.'
         }
       }
     }
@@ -383,7 +383,7 @@ export const visit_place = tool({
       return {
         success: true,
         placeName: finalName,
-        message: `Alright, visit status for "${finalName}" is wiped, dude.`
+        message: `Bet, "${finalName}"'s visit status is wiped. Never happened.`
       }
     }
 
@@ -398,7 +398,7 @@ export const visit_place = tool({
       success: true,
       placeName: finalName,
       visitDate,
-      message: `Dope! "${finalName}" hit on ${visitDate}.`
+      message: `Let's fucking go, "${finalName}" hit on ${visitDate}.`
     }
   }
 })
@@ -505,7 +505,7 @@ export const prioritize_place = tool({
     if (bestMatch.row['Date Visited']) {
       return {
         success: false,
-        message: `Bruh, you already went to "${finalName}". Why the hell are you trying to prioritize a place you already conquered? Get your priorities straight, literally.`
+        message: `Bro you already went to "${finalName}". Why you tryna prioritize a place you already conquered? Get your shit together.`
       }
     }
 
@@ -527,7 +527,7 @@ export const prioritize_place = tool({
       placeName: finalName,
       priority: finalPriority,
       priorityList: finalOrder.map((p, i) => ({ name: p.name, priority: i + 1 })),
-      message: `"${finalName}" locked in at priority ${finalPriority}.`
+      message: `"${finalName}" locked in at priority ${finalPriority}. Let's get it.`
     }
   }
 })

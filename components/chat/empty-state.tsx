@@ -37,7 +37,7 @@ export function EmptyState({ onAction, disabled }: EmptyStateProps) {
         <Sparkles className="w-7 h-7 text-blue-500 dark:text-blue-400" />
       </div>
       <h2 className="text-lg font-semibold mb-1 text-foreground">Sup, what you need?</h2>
-      <p className="text-sm text-muted-foreground max-w-xs mb-8">Ask for food recs or toss a new spot on your list. That's it, that's the app.</p>
+      <p className="text-sm text-muted-foreground max-w-xs mb-8">Ask for food recs or toss a new spot on your list. That's literally the whole app.</p>
 
       <div className="flex flex-col gap-2 w-full max-w-xs">
         {QUICK_ACTIONS.map(({ id, label, icon: Icon, color }) => (
