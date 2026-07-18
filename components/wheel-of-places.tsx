@@ -436,10 +436,10 @@ export function WheelOfPlaces() {
 
           <div className="flex flex-col gap-1.5 text-center">
             <h3 className="text-sm font-extrabold uppercase tracking-[0.2em] text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-violet-400">
-              Connecting
+              Hang Tight
             </h3>
             <p className="text-xs text-zinc-400 max-w-[240px] leading-relaxed">
-              Fetching places list...
+              Pulling up your list, don't rush me.
             </p>
           </div>
         </div>
@@ -464,7 +464,7 @@ export function WheelOfPlaces() {
             size="icon"
             onClick={() => setSoundEnabled(!soundEnabled)}
             className="w-8 h-8 text-zinc-400 hover:text-zinc-200"
-            title={soundEnabled ? 'Mute Sound' : 'Unmute Sound'}
+            title={soundEnabled ? 'Kill the sound' : 'Bring the noise'}
           >
             {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4 text-zinc-500" />}
           </Button>
@@ -494,9 +494,9 @@ export function WheelOfPlaces() {
       {/* 🎛️ CONTROL & POOL LIST SECTION ─── */}
       <div className="p-5 rounded-2xl glass flex flex-col gap-4">
         <div className="flex flex-col gap-2">
-          <h2 className="text-sm font-semibold tracking-wide text-foreground">PLACE SELECTION</h2>
+          <h2 className="text-sm font-semibold tracking-wide text-foreground">PICK YOUR SPOTS</h2>
           <p className="text-[11px] text-muted-foreground leading-relaxed">
-            Check the places you want to add to the wheel. Already-picked places will be automatically struck through to keep it fair.
+            Check off what goes on the wheel. Already picked a spot? It gets struck through so you can't cheat and land on it twice.
           </p>
         </div>
 
@@ -548,7 +548,7 @@ export function WheelOfPlaces() {
           <div className="relative flex-1">
             <input
               type="text"
-              placeholder="Search places or city..."
+              placeholder="Find a spot or city..."
               value={search}
               onChange={e => setSearch(e.target.value)}
               className="w-full text-xs bg-zinc-100 dark:bg-zinc-950/50 border border-zinc-200 dark:border-zinc-800/80 rounded-xl px-3 py-2 text-foreground dark:text-zinc-200 placeholder-muted-foreground dark:placeholder-zinc-500 focus:outline-none focus:border-zinc-400 dark:focus:border-zinc-700 transition-colors"
@@ -566,7 +566,7 @@ export function WheelOfPlaces() {
               size="icon"
               onClick={handleResetPicked}
               className="w-8 h-8 rounded-xl border border-border dark:border-zinc-800/80 text-muted-foreground hover:text-foreground dark:text-zinc-400 dark:hover:text-zinc-200 shrink-0"
-              title="Reset Struck"
+              title="Bring 'em back"
             >
               <RotateCcw className="w-3.5 h-3.5" />
             </Button>

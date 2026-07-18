@@ -16,10 +16,13 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { WheelOfPlaces } from '@/components/wheel-of-places'
 import { useAppAuth } from '@/hooks/use-app-auth'
+import { TOOL_METADATA } from '@/lib/ai/tools/metadata'
 import { Message } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
-const MUTATING_TOOLS = new Set(['add_place', 'visit_place', 'delete_place', 'prioritize_place'])
+const MUTATING_TOOLS = new Set(
+  Object.entries(TOOL_METADATA).filter(([, meta]) => meta.mutating).map(([name]) => name)
+)
 
 export default function ChatPage() {
   const bottomRef = useRef<HTMLDivElement>(null)
@@ -66,13 +69,13 @@ export default function ChatPage() {
     lastErrorRef.current = errorMessage
 
     if (errorMessage.includes('429') || errorMessage.includes('rate limit') || errorMessage.includes('too many')) {
-      toast.error('Rate limited! The AI is getting too many requests. Try again in a moment.')
+      toast.error("Slow your roll, you're spamming me. Try again in a sec.")
     } else if (errorMessage.includes('401') || errorMessage.includes('unauthorized')) {
       window.dispatchEvent(new Event('auth-failed'))
     } else if (errorMessage.includes('500') || errorMessage.includes('server error')) {
-      toast.error('Server error. The AI service might be down. Try again soon.')
+      toast.error('Something broke on my end. Try again in a bit.')
     } else {
-      toast.error(`Oops! ${errorMessage}`)
+      toast.error(`Shit broke: ${errorMessage}`)
     }
   }, [error])
 
@@ -110,11 +113,11 @@ export default function ChatPage() {
       navigator.geolocation.getCurrentPosition(
         pos => {
           coordsRef.current = { lat: pos.coords.latitude, lng: pos.coords.longitude }
-          toast.success('Sweet, got your location, fam!')
+          toast.success("Got your location. Try not to get lost.")
         },
         err => {
           console.warn('Geolocation error:', err)
-          toast.error("Bummer, couldn't snag your spot, dude.")
+          toast.error("Couldn't find you. Phone's being difficult, or you are.")
         },
         { enableHighAccuracy: true }
       )

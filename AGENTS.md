@@ -48,6 +48,7 @@
     - "Midnight & Neon" aesthetic with glassmorphism in the web app.
     - Real-time tool execution status indicators.
     - **Sonner Toast Notifications**: Sleek notifications for status updates.
+    - **Capabilities Info Popup**: An info button in the header opens a dialog listing everything the assistant can do, grouped by category (Discovery, Actions, Location, Global Search). Sourced entirely from `lib/ai/tools/metadata.ts` — the single registry of tool label, popup blurb, loading-status text, and mutating flag, also consumed by the chat status indicators and the mutating-tool cache-invalidation set, so adding a tool only means updating one file instead of three.
 - **Live Location Sync**:
     - Supports real-time GPS tracking from Web and Telegram.
     - **The 2km Rule**: Only recalculates distances if the user moves >2km, saving API costs.
@@ -145,6 +146,7 @@ graph TD
         - `tools.ts`: Vercel AI SDK tool definitions.
         - `tools/rate-limit.ts`: Per-tool Upstash rate limiting wrapper.
         - `tools/dedupe.ts`: Request-scoped tool execution cache.
+        - `tools/metadata.ts`: Single source of truth for tool display metadata (label, popup blurb, status text, mutating flag, category), consumed by the UI.
     - `bot.ts`: Grammy bot instance and message handling logic.
     - `googleSheets.ts`: Google Sheets API wrapper (rows cached in Redis).
     - `redis.ts`: Shared Upstash Redis client used by rate limiting and the row cache.

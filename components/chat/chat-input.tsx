@@ -40,7 +40,7 @@ export function ChatInput({ onSendMessage, isLoading }: ChatInputProps) {
           }
         }}
         autoFocus
-        placeholder="Ask about your favorite places…"
+        placeholder="Where we eating? Ask away…"
         disabled={isLoading}
         className="flex-1 glass border-border text-foreground text-sm placeholder:text-muted-foreground focus-visible:ring-primary/50 focus-visible:border-primary/40 rounded-xl h-12 px-4 transition-all"
       />

@@ -2,7 +2,7 @@
 
 import { ChefHat, MapPin } from 'lucide-react'
 import { ThemeToggle } from '@/components/theme-toggle'
-import { Badge } from '@/components/ui/badge'
+import { ToolsInfoDialog } from '@/components/chat/tools-info-dialog'
 import { Button } from '@/components/ui/button'
 
 export function ChatHeader({ onLocationClick }: { onLocationClick: () => void }) {
@@ -23,19 +23,13 @@ export function ChatHeader({ onLocationClick }: { onLocationClick: () => void })
           size="icon"
           onClick={onLocationClick}
           className="w-9 h-9 border-border hover:border-blue-500/50 hover:text-blue-600 dark:hover:text-blue-400 group transition-all duration-300"
-          title="Share Current Location"
+          title="Where you at?"
         >
           <MapPin className="w-4 h-4 group-hover:scale-110 transition-transform" />
         </Button>
 
         <ThemeToggle />
-        <Badge
-          variant="outline"
-          className="text-[10px] uppercase tracking-widest border-cyan-200 dark:border-cyan-500/30 text-cyan-600 dark:text-cyan-400 bg-cyan-50 dark:bg-cyan-500/5 px-2.5 py-1"
-        >
-          <span className="w-1.5 h-1.5 rounded-full bg-cyan-500 dark:bg-cyan-400 mr-1.5 animate-blink inline-block" />
-          Live
-        </Badge>
+        <ToolsInfoDialog />
       </div>
     </header>
   )

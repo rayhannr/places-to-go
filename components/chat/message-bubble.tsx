@@ -3,30 +3,14 @@
 import { Bot, User, Loader2, CheckCircle2 } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import { TOOL_METADATA } from '@/lib/ai/tools/metadata'
 import { Message, ToolPart } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
 function ToolPartView({ part }: { part: ToolPart }) {
   const toolName = part.type.replace('tool-', '')
 
-  const statusTextMap: Record<string, string> = {
-    add_place: 'Adding place to tracker…',
-    get_current_location: 'Locating you…',
-    sync_all_distances: 'Syncing distances from your location…',
-    visit_place: 'Updating visit date…',
-    delete_place: 'Deleting place from tracker…',
-    parse_place_link: 'Parsing place link…',
-    get_nearby_places: 'Finding nearby places…',
-    get_quickest_places: 'Finding quickest places…',
-    get_random_places: 'Picking a random place…',
-    get_places_by_city: 'Fetching places by city…',
-    search_places_by_name: 'Searching your places…',
-    search_google_maps: 'Searching Google Maps…',
-    get_priority_places: 'Fetching your priority list…',
-    prioritize_place: 'Updating priority…'
-  }
-
-  const getStatusText = () => statusTextMap[toolName] ?? 'Fetching your places…'
+  const getStatusText = () => TOOL_METADATA[toolName]?.statusText ?? 'Fetching your places…'
 
   const defaultSuccessIcon = (
     <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
@@ -56,81 +40,81 @@ function ToolPartView({ part }: { part: ToolPart }) {
     switch (toolName) {
       case 'add_place': {
         if (output?.isDuplicate) {
-          return renderError('Place already in your list')
+          return renderError(output?.message || 'Already on the list, genius')
         }
         const name = output?.entry?.name ?? 'place'
-        return renderSuccess(<>Added "{name}" successfully</>)
+        return renderSuccess(<>"{name}" is in. Locked and loaded.</>)
       }
       case 'get_current_location': {
         if (!output?.success) {
-          return renderError('GPS unavailable — share your location first', defaultWarningIcon)
+          return renderError('No GPS, no dice — share your location first', defaultWarningIcon)
         }
-        const address = output?.address || 'Unknown address'
-        return renderSuccess(<>Located: {address}</>)
+        const address = output?.address || 'no clue where that is'
+        return renderSuccess(<>Found you: {address}</>)
       }
       case 'sync_all_distances': {
         if (!output?.success) {
-          return renderError('No location available — share your GPS or a Maps link', defaultWarningIcon)
+          return renderError('Can\'t sync shit without a location — share your GPS or a Maps link', defaultWarningIcon)
         }
         const label = output?.updated
-          ? `Updated distances for ${output.count} place${output.count !== 1 ? 's' : ''}`
-          : 'Already up to date — you haven\'t moved more than 2km'
+          ? `Recalculated ${output.count} spot${output.count !== 1 ? 's' : ''}, all fresh`
+          : 'Chill, you haven\'t moved 2km. Nothing to update'
         return renderSuccess(<>{label}</>)
       }
       case 'visit_place': {
         const name = output?.placeName ?? 'place'
         const date = output?.visitDate ?? 'today'
         if (!output?.success) {
-          return renderError(output?.message || `Failed to mark "${name}" as visited`)
+          return renderError(output?.message || `Couldn't mark "${name}" visited`)
         }
         if (!output?.visitDate) {
-          return renderSuccess(<>Cleared visit date for "{name}"</>)
+          return renderSuccess(<>Wiped the visit date for "{name}"</>)
         }
-        return renderSuccess(<>Marked "{name}" visited on {date}</>)
+        return renderSuccess(<>"{name}" marked visited on {date}. Nice.</>)
       }
       case 'delete_place': {
         const name = output?.placeName ?? 'place'
         if (!output?.success) {
-          return renderError(output?.message || `Failed to delete "${name}"`)
+          return renderError(output?.message || `Couldn't delete "${name}"`)
         }
-        return renderSuccess(<>Deleted "{name}" from tracker</>)
+        return renderSuccess(<>"{name}" is toast. Deleted.</>)
       }
       case 'prioritize_place': {
         const name = output?.placeName ?? 'place'
         if (!output?.success) {
-          return renderError(output?.message || `Failed to prioritize "${name}"`)
+          return renderError(output?.message || `Couldn't prioritize "${name}"`)
         }
-        return renderSuccess(`Set "${name}" to priority ${output?.priority}`)
+        return renderSuccess(`"${name}" locked in at priority ${output?.priority}`)
       }
       case 'parse_place_link': {
         if (!output?.success) {
-          return renderError(output?.message || 'Failed to parse the place link.')
+          return renderError(output?.message || "Couldn't parse that link.")
         }
         const name = output?.placeName
         const coords = output?.coords as { lat: number; lng: number } | undefined
-        const coordLabel = coords ? `${coords.lat.toFixed(6)}, ${coords.lng.toFixed(6)}` : 'coordinates not found'
+        const coordLabel = coords ? `${coords.lat.toFixed(6)}, ${coords.lng.toFixed(6)}` : 'coordinates not found, don\'t ask'
         return renderSuccess(
-          <>Parsed {name ? `"${name}"` : 'place'} — {coordLabel}</>
+          <>Cracked it: {name ? `"${name}"` : 'place'} — {coordLabel}</>
         )
       }
       case 'get_nearby_places':
-        return renderPlaceListResult(output, 'Found')
+        return renderPlaceListResult(output, 'Dug up')
       case 'get_quickest_places':
-        return renderPlaceListResult(output, 'Found')
+        return renderPlaceListResult(output, 'Dug up')
       case 'get_random_places':
-        return renderPlaceListResult(output, 'Picked')
+        return renderPlaceListResult(output, 'Rolled up')
       case 'get_places_by_city':
-        return renderPlaceListResult(output, 'Found')
+        return renderPlaceListResult(output, 'Dug up')
       case 'search_places_by_name':
-        return renderPlaceListResult(output, 'Found')
+        return renderPlaceListResult(output, 'Dug up')
       case 'get_priority_places':
-        return renderPlaceListResult(output, 'Found')
+        return renderPlaceListResult(output, 'Dug up')
       case 'search_google_maps': {
         const count = output?.length ?? 0
-        return renderSuccess(<>Found {count} result{count !== 1 ? 's' : ''} on Google Maps</>)
+        return renderSuccess(<>Dug up {count} result{count !== 1 ? 's' : ''} on Google Maps</>)
       }
       default:
-        return renderPlaceListResult(output, 'Found')
+        return renderPlaceListResult(output, 'Dug up')
     }
   }
 

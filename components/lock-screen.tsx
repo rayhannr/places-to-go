@@ -22,11 +22,11 @@ export function LockScreen({ onUnlock }: LockScreenProps) {
       if (success) {
         setInput('')
       } else {
-        toast.error('Wrong password. Try again.')
+        toast.error('Nope, wrong password. Try again.')
         setInput('')
       }
     } catch {
-      toast.error('Could not verify password. Try again.')
+      toast.error("Couldn't check that password. Try again.")
     } finally {
       setIsVerifying(false)
     }
@@ -45,7 +45,7 @@ export function LockScreen({ onUnlock }: LockScreenProps) {
 
           <div className="flex flex-col items-center gap-1.5 text-center">
             <h1 className="text-lg font-black tracking-tight">Places to Go</h1>
-            <p className="text-xs text-muted-foreground">Enter the password to continue.</p>
+            <p className="text-xs text-muted-foreground">Password, or you're not getting in.</p>
           </div>
 
           <form onSubmit={handleSubmit} className="w-full flex flex-col gap-3">
@@ -73,7 +73,7 @@ export function LockScreen({ onUnlock }: LockScreenProps) {
               className="w-full bg-gradient-to-r from-blue-600 to-violet-600 hover:from-blue-500 hover:to-violet-500 text-white font-bold py-3 rounded-xl transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
             >
               {isVerifying ? <Loader2 className="w-4 h-4 animate-spin" /> : <Lock className="w-4 h-4" />}
-              {isVerifying ? 'Verifying...' : 'Unlock'}
+              {isVerifying ? 'Checking...' : 'Unlock'}
             </button>
           </form>
         </div>
