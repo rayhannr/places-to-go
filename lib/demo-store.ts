@@ -64,7 +64,8 @@ export async function demoAppendRow(_spreadsheetId: string, _tabName: string, va
     'Date Visited': (values[5] as string) || null,
     'Distance (from current location)': values[6] ?? null,
     'Travel Time (from current location)': values[7] ?? null,
-    Priority: null
+    Priority: null,
+    Category: (values[9] as string) || null
   }
   data.places.push(row)
   await writeData(data)
@@ -121,6 +122,20 @@ export async function demoUpdatePriorities(
       data.places[arrayIndex].Priority = u.priority || null
     }
   })
+  await writeData(data)
+}
+
+export async function demoUpdateCategory(
+  _spreadsheetId: string,
+  _tabName: string,
+  rowIndex: number, // 1-based sheet row; data starts at row 2, so array index = rowIndex - 2
+  category: string
+): Promise<void> {
+  const data = await readData()
+  const arrayIndex = rowIndex - 2
+  if (data.places[arrayIndex]) {
+    data.places[arrayIndex].Category = category || null
+  }
   await writeData(data)
 }
 

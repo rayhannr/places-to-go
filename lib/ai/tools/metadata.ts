@@ -46,6 +46,13 @@ export const TOOL_METADATA: Record<string, ToolMetadata> = {
     mutating: false,
     category: 'discovery'
   },
+  get_places_by_category: {
+    label: 'By Category',
+    blurb: 'Filters your list down to one category, like cuisine or food type.',
+    statusText: 'Digging through categories…',
+    mutating: false,
+    category: 'discovery'
+  },
   search_places_by_name: {
     label: 'Search By Name',
     blurb: 'Hunts your list for a place by name, typos and all.',
@@ -85,6 +92,13 @@ export const TOOL_METADATA: Record<string, ToolMetadata> = {
     label: 'Prioritize',
     blurb: 'Bumps a place up or down your "go next" queue, or yanks it off entirely.',
     statusText: 'Reshuffling the queue…',
+    mutating: true,
+    category: 'actions'
+  },
+  categorize_place: {
+    label: 'Categorize',
+    blurb: 'Tags or retags a place with a category, like cuisine or food type.',
+    statusText: 'Slapping on a category…',
     mutating: true,
     category: 'actions'
   },

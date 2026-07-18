@@ -89,6 +89,13 @@ function ToolPartView({ part }: { part: ToolPart }) {
         }
         return renderSuccess(`"${name}" locked in at priority ${output?.priority}`)
       }
+      case 'categorize_place': {
+        const name = output?.placeName ?? 'place'
+        if (!output?.success) {
+          return renderError(output?.message || `Couldn't categorize "${name}"`)
+        }
+        return renderSuccess(<>"{name}" tagged as "{output?.category}"</>)
+      }
       case 'parse_place_link': {
         if (!output?.success) {
           return renderError(output?.message || "Couldn't parse that link.")
@@ -107,6 +114,8 @@ function ToolPartView({ part }: { part: ToolPart }) {
       case 'get_random_places':
         return renderPlaceListResult(output, 'Rolled up')
       case 'get_places_by_city':
+        return renderPlaceListResult(output, 'Dug up')
+      case 'get_places_by_category':
         return renderPlaceListResult(output, 'Dug up')
       case 'search_places_by_name':
         return renderPlaceListResult(output, 'Dug up')

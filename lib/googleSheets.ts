@@ -8,7 +8,8 @@ import {
   demoSaveChatSession,
   demoUpdateVisitDate,
   demoDeleteRow,
-  demoUpdatePriorities
+  demoUpdatePriorities,
+  demoUpdateCategory
 } from './demo-store'
 import { getRedis } from './redis'
 export type { PlaceRow } from './types'
@@ -315,6 +316,33 @@ export async function updatePriorities(
         range: `${tabName}!I${u.rowIndex}`,
         values: [[u.priority]]
       }))
+    }
+  } as any)
+
+  const key = `${spreadsheetId}::${tabName}`
+  await invalidateRowsCache(key)
+}
+
+/**
+ * Update the "Category" column (Column J) for a specific row.
+ */
+export async function updateCategory(
+  spreadsheetId: string,
+  tabName: string,
+  rowIndex: number,
+  category: string
+): Promise<void> {
+  if (DEMO_MODE) return demoUpdateCategory(spreadsheetId, tabName, rowIndex, category)
+
+  const sheets = await getSheetsClient()
+  const range = `${tabName}!J${rowIndex}`
+
+  await sheets.spreadsheets.values.update({
+    spreadsheetId,
+    range,
+    valueInputOption: 'USER_ENTERED',
+    requestBody: {
+      values: [[category]]
     }
   } as any)
 

@@ -11,13 +11,17 @@
     - Extracts coordinates and place names from URLs; falls back to Places API and geocoding.
     - Deduplicates by raw link and by Place ID before inserting.
     - Calculates distance (km) and travel time (minutes) from home base and from current location.
+    - Accepts an optional `category` (e.g. cuisine or type of food) — left empty if not given.
     - Saves data directly to a Google Sheet.
 - **Smart Lenses**:
     - **`get_nearby_places`**: Find spots closest to the user's current or reference location.
     - **`get_quickest_places`**: Find spots with the shortest travel time.
     - **`get_random_places`**: "Surprise me" discovery, optionally filtered by visit status.
     - **`get_places_by_city`**: Filter places by a specific city name.
+    - **`get_places_by_category`**: Filter places by a specific category (e.g. cuisine or type of food).
     - **`search_places_by_name`**: Fuzzy search across the personal tracker by place name.
+- **Categorization (`categorize_place`)**:
+    - Sets or updates a place's `Category` by name, using fuzzy matching to find the correct place.
 - **Global Discovery (`search_google_maps`)**: 
     - Search for new places directly on Google Maps (outside the personal tracker).
     - Returns top 3 results with name, city, and direct Maps link.

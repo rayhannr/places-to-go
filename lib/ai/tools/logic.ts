@@ -15,7 +15,8 @@ export function compactPlace(r: PlaceRow, useLive = false) {
     link: r.Link,
     dist,
     time,
-    visited: r['Date Visited'] || null
+    visited: r['Date Visited'] || null,
+    category: r.Category || null
   }
 }
 
@@ -178,6 +179,20 @@ export function buildPriorityUpdates(entries: PriorityEntry[]): { rowIndex: numb
     if (p.priority !== newPriority) updates.push({ rowIndex: p.index, priority: newPriority })
   })
   return updates
+}
+
+/**
+ * Find the best fuzzy-matched place by name, or null if nothing matches closely enough.
+ * Shared by tools that look up a single place by name (visit/delete/prioritize/categorize).
+ */
+export function findPlaceByName(rows: PlaceRow[], name: string) {
+  const bestMatch = fuzzySearchPlaces(rows, name)[0]
+  // Threshold for matching: if the score is too high, it's likely not a match
+  return !bestMatch || bestMatch.score > 5 ? null : bestMatch
+}
+
+export function placeNotFoundMessage(name: string): string {
+  return `Shit man, there is no place named "${name}" in your fucking list. You high or something?`
 }
 
 /**

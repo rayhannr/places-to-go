@@ -1,11 +1,13 @@
 import { tool } from 'ai'
 import { z } from 'zod'
-import { getRows, appendRow, updateVisitDate, deleteRow, updatePriorities } from '../../googleSheets'
+import { getRows, appendRow, updateVisitDate, deleteRow, updatePriorities, updateCategory } from '../../googleSheets'
 import {
   compactPlace,
   syncLiveDistancesIfNeeded,
   filterByStatus,
   fuzzySearchPlaces,
+  findPlaceByName,
+  placeNotFoundMessage,
   getPrioritizedEntries,
   buildPriorityUpdates,
   SPREADSHEET_ID,
@@ -153,6 +155,38 @@ export const get_places_by_city = tool({
   }
 })
 
+export const get_places_by_category = tool({
+  description: 'Get places filtered by a specific category (e.g. cuisine or type of food).',
+  inputSchema: z.object({
+    category: z.string().describe('The category to filter by'),
+    count: z.number().optional().default(1).describe('Number of places to return (1-10)'),
+    status: z.enum(['visited', 'unvisited']).optional().default('unvisited'),
+    userLocation: z.object({ lat: z.number(), lng: z.number() }).optional().describe('User current location for live distance')
+  }),
+  execute: async ({
+    category,
+    count = 1,
+    status = 'unvisited',
+    userLocation
+  }: {
+    category: string
+    count?: number
+    status?: 'visited' | 'unvisited'
+    userLocation?: Coords
+  }) => {
+    let allRows = await getRows(SPREADSHEET_ID, TAB_NAME)
+    if (userLocation) {
+      allRows = await syncLiveDistancesIfNeeded(allRows, userLocation)
+    }
+    const filtered = filterByStatus(allRows, status).filter(r => {
+      const rowCategory = (r.Category || '').toLowerCase()
+      return rowCategory.includes(category.toLowerCase())
+    })
+    const shuffled = [...filtered].sort(() => 0.5 - Math.random())
+    return shuffled.slice(0, Math.min(count, 10)).map(r => compactPlace(r, !!userLocation))
+  }
+})
+
 export const search_places_by_name = tool({
   description: 'Search for a place by its name using fuzzy matching.',
   inputSchema: z.object({
@@ -191,9 +225,22 @@ export const add_place = tool({
     name: z.string().optional().describe('Name of the place (Optional, will be automatically extracted from link)'),
     city: z.string().optional().describe('City where the place is located (Optional, will be derived via geocoding)'),
     link: z.string().describe('Google Maps URL (supports short links)'),
+    category: z.string().optional().describe('Category of the place, e.g. cuisine or type of food (Optional, leave empty if not given)'),
     userLocation: z.object({ lat: z.number(), lng: z.number() }).optional().describe('User current location for live distance')
   }),
-  execute: async ({ name, city, link, userLocation }: { name?: string; city?: string; link: string; userLocation?: Coords }) => {
+  execute: async ({
+    name,
+    city,
+    link,
+    category,
+    userLocation
+  }: {
+    name?: string
+    city?: string
+    link: string
+    category?: string
+    userLocation?: Coords
+  }) => {
     const existingRows = await getRows(SPREADSHEET_ID, TAB_NAME)
 
     // 🔍 Early Deduplication Check (Raw Link)
@@ -302,10 +349,12 @@ export const add_place = tool({
       savedUrl = `${savedUrl}${separator}query_place_id=${placeId}`
     }
 
-    const row = [finalName, finalCity, savedUrl, distKm!, travelMin!, '', liveDistKm, liveTravelMin]
+    const finalCategory = category || ''
+
+    const row = [finalName, finalCity, savedUrl, distKm!, travelMin!, '', liveDistKm, liveTravelMin, '', finalCategory]
     await appendRow(SPREADSHEET_ID, TAB_NAME, row)
 
-    return { success: true, entry: { name: finalName, city: finalCity, distKm, travelMin, liveDistKm, liveTravelMin } }
+    return { success: true, entry: { name: finalName, city: finalCity, distKm, travelMin, liveDistKm, liveTravelMin, category: finalCategory || null } }
   }
 })
 
@@ -322,17 +371,9 @@ export const visit_place = tool({
 
     let allRows = await getRows(SPREADSHEET_ID, TAB_NAME)
 
-    // Find the best match using fuzzy search
-    const results = fuzzySearchPlaces(allRows, name)
-
-    const bestMatch = results[0]
-
-    // Threshold for matching: if the score is too high, it's likely not a match
-    if (!bestMatch || bestMatch.score > 5) {
-      return {
-        success: false,
-        message: `Shit man, there is no place named "${name}" in your fucking list. You high or something?`
-      }
+    const bestMatch = findPlaceByName(allRows, name)
+    if (!bestMatch) {
+      return { success: false, message: placeNotFoundMessage(name) }
     }
 
     await updateVisitDate(SPREADSHEET_ID, TAB_NAME, bestMatch.index, visitDate)
@@ -370,16 +411,9 @@ export const delete_place = tool({
   execute: async ({ name }: { name: string }) => {
     let allRows = await getRows(SPREADSHEET_ID, TAB_NAME)
 
-    // Find the best match using fuzzy search
-    const results = fuzzySearchPlaces(allRows, name)
-    const bestMatch = results[0]
-
-    // Threshold for matching: if the score is too high, it's likely not a match
-    if (!bestMatch || bestMatch.score > 5) {
-      return {
-        success: false,
-        message: `Shit man, there is no place named "${name}" in your fucking list. You high or something?`
-      }
+    const bestMatch = findPlaceByName(allRows, name)
+    if (!bestMatch) {
+      return { success: false, message: placeNotFoundMessage(name) }
     }
 
     const oldPriority = parseInt(String(bestMatch.row.Priority ?? ''), 10)
@@ -441,16 +475,9 @@ export const prioritize_place = tool({
   execute: async ({ name, priority, deprioritize }: { name: string; priority?: number; deprioritize?: boolean }) => {
     const allRows = await getRows(SPREADSHEET_ID, TAB_NAME)
 
-    // Find the best match using fuzzy search
-    const results = fuzzySearchPlaces(allRows, name)
-    const bestMatch = results[0]
-
-    // Threshold for matching: if the score is too high, it's likely not a match
-    if (!bestMatch || bestMatch.score > 5) {
-      return {
-        success: false,
-        message: `Shit man, there is no place named "${name}" in your fucking list. You high or something?`
-      }
+    const bestMatch = findPlaceByName(allRows, name)
+    if (!bestMatch) {
+      return { success: false, message: placeNotFoundMessage(name) }
     }
 
     const finalName = bestMatch.row.Name
@@ -501,6 +528,32 @@ export const prioritize_place = tool({
       priority: finalPriority,
       priorityList: finalOrder.map((p, i) => ({ name: p.name, priority: i + 1 })),
       message: `"${finalName}" locked in at priority ${finalPriority}.`
+    }
+  }
+})
+
+export const categorize_place = tool({
+  description: 'Set or update the category (e.g. cuisine or type of food) of an existing place in the tracker.',
+  inputSchema: z.object({
+    name: z.string().describe('The name of the place to categorize'),
+    category: z.string().describe('The category to assign to the place')
+  }),
+  execute: async ({ name, category }: { name: string; category: string }) => {
+    const allRows = await getRows(SPREADSHEET_ID, TAB_NAME)
+
+    const bestMatch = findPlaceByName(allRows, name)
+    if (!bestMatch) {
+      return { success: false, message: placeNotFoundMessage(name) }
+    }
+
+    await updateCategory(SPREADSHEET_ID, TAB_NAME, bestMatch.index, category)
+
+    const finalName = bestMatch.row.Name
+    return {
+      success: true,
+      placeName: finalName,
+      category,
+      message: `"${finalName}" tagged as "${category}". Easy.`
     }
   }
 })

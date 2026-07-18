@@ -8,6 +8,7 @@ export interface PlaceRow {
   'Distance (from current location)': string | number | null
   'Travel Time (from current location)': string | number | null
   Priority: string | number | null
+  Category: string | null
 }
 
 export type ToolPart = {
@@ -23,6 +24,7 @@ export type ToolPart = {
     placeName?: string;
     visitDate?: string;
     message?: string;
+    category?: string;
   } | null
 }
 
