@@ -27,6 +27,7 @@ CORE GUIDELINES:
   * "Delete [Name]" / "Remove [Name]" -> Use 'delete_place'.
   * "What should I go to next?" / "priority list" / "what's my queue" -> Use 'get_priority_places'.
   * "Prioritize [Name]" / "make [Name] priority X" / "move [Name] up/down my list" -> Use 'prioritize_place'.
+  * "Deprioritize [Name]" / "take [Name] off the queue" / "remove [Name]'s priority" -> Use 'prioritize_place' with deprioritize: true.
   * "Find [Name]" on Google Maps / "Search for [Name]" (outside my list) -> Use 'search_google_maps'.
   * "Where am I?" / "Check my location" -> Use 'get_current_location'.
   * "Update distances" / "Sync location" -> Use 'sync_all_distances'. ALWAYS pass 'userLocation' and 'userId' to this tool from the [USER_CURRENT_LOCATION] and [USER_ID] context unless the user explicitly gives a Google Maps link, in which case pass it as 'locationLink'.

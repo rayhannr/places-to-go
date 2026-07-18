@@ -424,7 +424,7 @@ export const get_priority_places = tool({
 
 export const prioritize_place = tool({
   description:
-    'Set or update a place\'s rank on the "want to go next" priority list. Lower numbers mean higher priority (1 = go there first). Omit the priority to send the place to the back of the list. Automatically shifts other prioritized places to keep ranks contiguous.',
+    'Set or update a place\'s rank on the "want to go next" priority list, or pull it off the list entirely. Lower numbers mean higher priority (1 = go there first). Omit the priority to send the place to the back of the queue. Pass deprioritize: true to remove it from the queue without touching visit status. Automatically shifts other prioritized places to keep ranks contiguous.',
   inputSchema: z.object({
     name: z.string().describe('The name of the place to prioritize'),
     priority: z
@@ -432,9 +432,13 @@ export const prioritize_place = tool({
       .int()
       .positive()
       .optional()
-      .describe('Desired priority rank (1 = highest). Omit to send it to the back of the priority list.')
+      .describe('Desired priority rank (1 = highest). Omit to send it to the back of the priority list.'),
+    deprioritize: z
+      .boolean()
+      .optional()
+      .describe('Set to true to remove the place from the priority list entirely (clears its rank). Ignores the priority field if set.')
   }),
-  execute: async ({ name, priority }: { name: string; priority?: number }) => {
+  execute: async ({ name, priority, deprioritize }: { name: string; priority?: number; deprioritize?: boolean }) => {
     const allRows = await getRows(SPREADSHEET_ID, TAB_NAME)
 
     // Find the best match using fuzzy search
@@ -450,6 +454,26 @@ export const prioritize_place = tool({
     }
 
     const finalName = bestMatch.row.Name
+
+    if (deprioritize) {
+      const oldPriority = parseInt(String(bestMatch.row.Priority ?? ''), 10)
+      if (isNaN(oldPriority) || oldPriority <= 0) {
+        return {
+          success: false,
+          message: `"${finalName}" ain't even on the priority list, dumbass. Nothing to remove.`
+        }
+      }
+
+      const others = getPrioritizedEntries(allRows, bestMatch.index)
+      await updatePriorities(SPREADSHEET_ID, TAB_NAME, [...buildPriorityUpdates(others), { rowIndex: bestMatch.index, priority: '' }])
+
+      return {
+        success: true,
+        placeName: finalName,
+        priority: null,
+        message: `"${finalName}" is off the priority list. Back to being just another place.`
+      }
+    }
 
     if (bestMatch.row['Date Visited']) {
       return {

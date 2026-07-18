@@ -83,7 +83,7 @@ export const TOOL_METADATA: Record<string, ToolMetadata> = {
   },
   prioritize_place: {
     label: 'Prioritize',
-    blurb: 'Bumps a place up or down your "go next" queue.',
+    blurb: 'Bumps a place up or down your "go next" queue, or yanks it off entirely.',
     statusText: 'Reshuffling the queue…',
     mutating: true,
     category: 'actions'

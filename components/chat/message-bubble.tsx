@@ -84,6 +84,9 @@ function ToolPartView({ part }: { part: ToolPart }) {
         if (!output?.success) {
           return renderError(output?.message || `Couldn't prioritize "${name}"`)
         }
+        if (output?.priority == null) {
+          return renderSuccess(`"${name}" is off the priority list`)
+        }
         return renderSuccess(`"${name}" locked in at priority ${output?.priority}`)
       }
       case 'parse_place_link': {
