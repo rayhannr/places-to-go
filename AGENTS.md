@@ -69,6 +69,13 @@
     - Displays a winner modal with place name, city, distance, travel time, and a direct Google Maps link.
 - **AI-Driven Error Recovery**: 
     - Secondary AI call in the Telegram bot to interpret and explain technical errors in persona.
+- **Closure Check (`/api/cron/check-closures`)**:
+    - Monthly Vercel Cron job (also manually triggerable) that sweeps unvisited places for permanent closures.
+    - For each unvisited place with a Place ID embedded in its link, calls the Places API for `businessStatus` only (cheapest field mask) — places without a resolvable Place ID are skipped.
+    - Skips any place already checked within the last 7 days (tracked in Redis, keyed by Place ID) so a manual trigger close to the scheduled run doesn't re-burn API calls on places just checked. Falls back to checking everyone if Redis isn't configured.
+    - Any place found `CLOSED_PERMANENTLY` is deleted from the sheet (rows removed highest-index-first so indices stay valid mid-batch), and the priority queue is renumbered afterward if any deleted place had a rank.
+    - Pushes a single Telegram message to every ID in `TELEGRAM_ALLOWED_USER_ID` listing what was removed — only sent when at least one closure is found, no monthly "all clear" spam.
+    - Auth'd via `CRON_SECRET`: the request must carry `Authorization: Bearer <CRON_SECRET>`, which Vercel attaches automatically for its own Cron invocations. Disabled entirely in demo mode.
 - **Demo Mode**:
     - Designed for public or portfolio deployments, separate from the personal instance, without exposing the owner's Google Sheet.
     - Activated via `DEMO_MODE=true` environment variable.
@@ -146,6 +153,7 @@ graph TD
     - `api/`:
         - `chat/route.ts`: Web chat API endpoint.
         - `telegram/route.ts`: Telegram webhook endpoint.
+        - `cron/check-closures/route.ts`: Monthly closure-check sweep (also manually triggerable), see Core Features.
     - `page.tsx`: Web chat interface.
 - `lib/`:
     - `ai/`:
@@ -159,6 +167,7 @@ graph TD
     - `redis.ts`: Shared Upstash Redis client used by rate limiting and the row cache.
 - `scripts/`:
     - `set-webhook.ts`: Helper script to configure Telegram webhook.
+- `vercel.json`: Vercel Cron schedule (monthly closure check).
 
 ## 6. Configuration (Environment Variables)
 - `MISTRAL_API_KEY`: Authentication for Mistral AI.
@@ -173,6 +182,7 @@ graph TD
 - `BLOB_READ_WRITE_TOKEN`: Vercel Blob token. Required when `DEMO_MODE=true`.
 - `UPSTASH_REDIS_REST_URL`: Upstash Redis REST URL. Required for per-tool rate limiting.
 - `UPSTASH_REDIS_REST_TOKEN`: Upstash Redis REST token. Required for per-tool rate limiting.
+- `CRON_SECRET`: Bearer token authorizing `/api/cron/check-closures`. Vercel attaches this automatically as `Authorization: Bearer <value>` for its own scheduled invocations (see `vercel.json`); use the same header to trigger the check manually.
 
 ## 7. Future Roadmap
 - [x] **Telegram Integration**: 24/7 access via chatbot.

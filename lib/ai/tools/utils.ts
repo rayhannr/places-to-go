@@ -1,9 +1,13 @@
 import https from 'https'
 import { Client, AddressType } from '@googlemaps/google-maps-services-js'
+import { PlacesClient } from '@googlemaps/places'
 import axios from 'axios'
 
 export const GMAPS_API_KEY = process.env.GMAPS_API_KEY!
 export const gmapsClient = new Client({})
+// New Places API (v1) client. `fallback: 'rest'` uses plain JSON-over-HTTPS instead of
+// gRPC, and `apiKey` auths the same way the legacy client and raw REST calls always did.
+export const placesClient = new PlacesClient({ apiKey: GMAPS_API_KEY, fallback: 'rest' })
 
 export interface Coords {
   lat: number
@@ -285,38 +289,19 @@ interface GmapsPlace {
 
 export async function searchGmapsPlaces(query: string): Promise<GmapsPlace[]> {
   try {
-    const url = 'https://places.googleapis.com/v1/places:searchText'
-    const resp = await axios.post<{
-      places?: Array<{
-        displayName?: { text: string }
-        formattedAddress?: string
-        id: string
-      }>
-    }>(
-      url,
+    const [response] = await placesClient.searchText(
       { textQuery: query },
-      {
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Goog-Api-Key': GMAPS_API_KEY,
-          'X-Goog-FieldMask': 'places.displayName,places.formattedAddress,places.id'
-        },
-        timeout: 10000
-      }
+      { otherArgs: { headers: { 'X-Goog-FieldMask': 'places.displayName,places.formattedAddress,places.id' } } }
     )
 
-    const places = resp.data.places || []
+    const places = response.places || []
     return places.map(p => ({
       name: p.displayName?.text || 'Unknown Name',
-      formatted_address: p.formattedAddress,
-      place_id: p.id
+      formatted_address: p.formattedAddress || undefined,
+      place_id: p.id || undefined
     }))
-  } catch (err: unknown) {
-    if (axios.isAxiosError(err)) {
-      console.error('Gmaps Search Error:', err.response?.data || err.message)
-    } else {
-      console.error('Gmaps Search Error:', err)
-    }
+  } catch (err) {
+    console.error('Gmaps Search Error:', err)
     return []
   }
 }
@@ -331,40 +316,49 @@ export function extractPlaceId(url: string | null): string | null {
   }
 }
 
+export type PlaceBusinessStatus = 'OPERATIONAL' | 'CLOSED_TEMPORARILY' | 'CLOSED_PERMANENTLY'
+
+/**
+ * Lightweight Place Details call requesting only businessStatus, for closure checks.
+ * Missing field on the response means Google has no closure signal — treat as operational.
+ */
+export async function getPlaceBusinessStatus(placeId: string): Promise<PlaceBusinessStatus | null> {
+  try {
+    const [place] = await placesClient.getPlace(
+      { name: `places/${placeId}` },
+      { otherArgs: { headers: { 'X-Goog-FieldMask': 'businessStatus' } } }
+    )
+
+    return (place.businessStatus as PlaceBusinessStatus) || 'OPERATIONAL'
+  } catch (err) {
+    console.error('Gmaps Place Business Status Error:', err)
+    return null
+  }
+}
+
 export async function getPlaceDetails(placeId: string): Promise<{ name?: string; coords?: Coords; city?: string } | null> {
   try {
-    const url = `https://places.googleapis.com/v1/places/${placeId}`
-    const resp = await axios.get<{
-      displayName?: { text: string }
-      location?: { latitude: number; longitude: number }
-      addressComponents?: Array<{ longText: string; types: string[] }>
-    }>(url, {
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Goog-Api-Key': GMAPS_API_KEY,
-        'X-Goog-FieldMask': 'displayName,location,addressComponents'
-      },
-      timeout: 10000
-    })
+    const [place] = await placesClient.getPlace(
+      { name: `places/${placeId}` },
+      { otherArgs: { headers: { 'X-Goog-FieldMask': 'displayName,location,addressComponents' } } }
+    )
 
-    const data = resp.data
     let city: string | undefined
-    if (data.addressComponents) {
-      const cityComp = data.addressComponents.find(c => c.types.includes('locality') || c.types.includes('administrative_area_level_2'))
-      if (cityComp) city = cleanCityName(cityComp.longText)
+    if (place.addressComponents) {
+      const cityComp = place.addressComponents.find(c => c.types?.includes('locality') || c.types?.includes('administrative_area_level_2'))
+      if (cityComp?.longText) city = cleanCityName(cityComp.longText)
     }
 
     return {
-      name: data.displayName?.text,
-      coords: data.location ? { lat: data.location.latitude, lng: data.location.longitude } : undefined,
+      name: place.displayName?.text || undefined,
+      coords:
+        place.location?.latitude != null && place.location?.longitude != null
+          ? { lat: place.location.latitude, lng: place.location.longitude }
+          : undefined,
       city
     }
   } catch (err) {
-    if (axios.isAxiosError(err)) {
-      console.error('Gmaps Place Details Error:', err.response?.data || err.message)
-    } else {
-      console.error('Gmaps Place Details Error:', err)
-    }
+    console.error('Gmaps Place Details Error:', err)
     return null
   }
 }
