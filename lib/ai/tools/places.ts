@@ -156,9 +156,10 @@ export const get_places_by_city = tool({
 })
 
 export const get_places_by_category = tool({
-  description: 'Get places filtered by a specific category (e.g. cuisine or type of food).',
+  description:
+    'Get places filtered by a specific category (e.g. cuisine or type of food). A place can have multiple categories (comma-separated); pass a single category or a comma-separated list to match any of them.',
   inputSchema: z.object({
-    category: z.string().describe('The category to filter by'),
+    category: z.string().describe('The category to filter by. Pass a comma-separated list to match places having any of them'),
     count: z.number().optional().default(1).describe('Number of places to return (1-10)'),
     status: z.enum(['visited', 'unvisited']).optional().default('unvisited'),
     userLocation: z.object({ lat: z.number(), lng: z.number() }).optional().describe('User current location for live distance')
@@ -178,9 +179,16 @@ export const get_places_by_category = tool({
     if (userLocation) {
       allRows = await syncLiveDistancesIfNeeded(allRows, userLocation)
     }
+    const queryCategories = category
+      .split(',')
+      .map(c => c.trim().toLowerCase())
+      .filter(Boolean)
     const filtered = filterByStatus(allRows, status).filter(r => {
-      const rowCategory = (r.Category || '').toLowerCase()
-      return rowCategory.includes(category.toLowerCase())
+      const rowCategories = (r.Category || '')
+        .split(',')
+        .map(c => c.trim().toLowerCase())
+        .filter(Boolean)
+      return queryCategories.some(q => rowCategories.some(rc => rc.includes(q)))
     })
     const shuffled = [...filtered].sort(() => 0.5 - Math.random())
     return shuffled.slice(0, Math.min(count, 10)).map(r => compactPlace(r, !!userLocation))
@@ -225,7 +233,12 @@ export const add_place = tool({
     name: z.string().optional().describe('Name of the place (Optional, will be automatically extracted from link)'),
     city: z.string().optional().describe('City where the place is located (Optional, will be derived via geocoding)'),
     link: z.string().describe('Google Maps URL (supports short links)'),
-    category: z.string().optional().describe('Category of the place, e.g. cuisine or type of food (Optional, leave empty if not given)'),
+    category: z
+      .string()
+      .optional()
+      .describe(
+        'Category of the place, e.g. cuisine or type of food (Optional, leave empty if not given). Supports multiple categories as a comma-separated list, formatted lowercase with no space after the comma (an individual category name may itself contain spaces), e.g. "japanese,spicy food"'
+      ),
     userLocation: z.object({ lat: z.number(), lng: z.number() }).optional().describe('User current location for live distance')
   }),
   execute: async ({
@@ -533,10 +546,15 @@ export const prioritize_place = tool({
 })
 
 export const categorize_place = tool({
-  description: 'Set or update the category (e.g. cuisine or type of food) of an existing place in the tracker.',
+  description:
+    'Set or update the category (e.g. cuisine or type of food) of an existing place in the tracker. Supports multiple categories as a comma-separated list, which replaces the place\'s entire category value.',
   inputSchema: z.object({
     name: z.string().describe('The name of the place to categorize'),
-    category: z.string().describe('The category to assign to the place')
+    category: z
+      .string()
+      .describe(
+        'The category to assign to the place, formatted lowercase with no space after the comma (an individual category name may itself contain spaces). Pass a comma-separated list to assign multiple categories, e.g. "japanese,spicy food"'
+      )
   }),
   execute: async ({ name, category }: { name: string; category: string }) => {
     const allRows = await getRows(SPREADSHEET_ID, TAB_NAME)

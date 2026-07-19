@@ -48,7 +48,7 @@ export const TOOL_METADATA: Record<string, ToolMetadata> = {
   },
   get_places_by_category: {
     label: 'By Category',
-    blurb: 'Filters your list down to one category, like cuisine or food type.',
+    blurb: 'Filters your list down to one or more categories, like cuisine or food type.',
     statusText: 'Digging through categories…',
     mutating: false,
     category: 'discovery'
@@ -97,7 +97,7 @@ export const TOOL_METADATA: Record<string, ToolMetadata> = {
   },
   categorize_place: {
     label: 'Categorize',
-    blurb: 'Tags or retags a place with a category, like cuisine or food type.',
+    blurb: 'Tags or retags a place with one or more categories, like cuisine or food type.',
     statusText: 'Slapping on a category…',
     mutating: true,
     category: 'actions'
