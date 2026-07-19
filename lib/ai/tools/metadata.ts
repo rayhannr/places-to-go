@@ -53,6 +53,13 @@ export const TOOL_METADATA: Record<string, ToolMetadata> = {
     mutating: false,
     category: 'discovery'
   },
+  get_categories: {
+    label: 'All Categories',
+    blurb: 'Lists every category on your list and how many places are tagged with each.',
+    statusText: 'Counting categories…',
+    mutating: false,
+    category: 'discovery'
+  },
   search_places_by_name: {
     label: 'Search By Name',
     blurb: 'Hunts your list for a place by name, typos and all.',

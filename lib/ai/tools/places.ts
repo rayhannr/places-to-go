@@ -195,6 +195,33 @@ export const get_places_by_category = tool({
   }
 })
 
+export const get_categories = tool({
+  description:
+    'Get every distinct category used across the tracker, with how many places have each one. A place\'s Category cell may hold multiple comma-separated categories; each one is counted separately.',
+  inputSchema: z.object({
+    status: z.enum(['visited', 'unvisited', 'any']).optional().default('any')
+  }),
+  execute: async ({ status = 'any' }: { status?: 'visited' | 'unvisited' | 'any' }) => {
+    const allRows = await getRows(SPREADSHEET_ID, TAB_NAME)
+    const filtered = status === 'any' ? allRows : filterByStatus(allRows, status as any)
+
+    const counts = new Map<string, number>()
+    for (const r of filtered) {
+      const rowCategories = (r.Category || '')
+        .split(',')
+        .map(c => c.trim().toLowerCase())
+        .filter(Boolean)
+      for (const c of rowCategories) {
+        counts.set(c, (counts.get(c) || 0) + 1)
+      }
+    }
+
+    return [...counts.entries()]
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+      .map(([category, count]) => ({ category, count }))
+  }
+})
+
 export const search_places_by_name = tool({
   description: 'Search for a place by its name using fuzzy matching.',
   inputSchema: z.object({

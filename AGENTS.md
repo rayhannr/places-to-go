@@ -19,6 +19,7 @@
     - **`get_random_places`**: "Surprise me" discovery, optionally filtered by visit status.
     - **`get_places_by_city`**: Filter places by a specific city name.
     - **`get_places_by_category`**: Filter places by one or more categories (e.g. cuisine or type of food); a place's `Category` cell may itself hold several comma-separated categories, and a comma-separated query matches any of them.
+    - **`get_categories`**: List every distinct category used across the tracker with a count of how many places have each; a place's `Category` cell may hold several comma-separated categories, each counted separately. Optionally filtered by visit status.
     - **`search_places_by_name`**: Fuzzy search across the personal tracker by place name.
 - **Editing (`update_place`)**:
     - Updates a place's `Name`, `City`, `Link`, and/or `Category`, using fuzzy matching to find the correct place by its current name.
