@@ -22,7 +22,13 @@ interface Place {
   dist: string | number | null
   time: string | number | null
   visited: string | null
+  priority: string | number | null
   index: number
+}
+
+function getPriorityRank(place: Place): number | null {
+  const n = parseInt(String(place.priority ?? ''), 10)
+  return !isNaN(n) && n > 0 ? n : null
 }
 
 const NEON_COLORS = [
@@ -37,7 +43,7 @@ const NEON_COLORS = [
 
 export function WheelOfPlaces() {
   const { resolvedTheme } = useTheme()
-  const [filter, setFilter] = useState<'unvisited' | 'visited' | 'all'>('unvisited')
+  const [filter, setFilter] = useState<'unvisited' | 'visited' | 'all' | 'prioritized'>('unvisited')
   const [search, setSearch] = useState('')
   const [soundEnabled, setSoundEnabled] = useState(true)
 
@@ -376,13 +382,22 @@ export function WheelOfPlaces() {
   }, [activePool])
 
   // Filter & Search
-  const filteredPlaces = places.filter(p => {
-    const matchesFilter = filter === 'all' || (filter === 'visited' && !!p.visited) || (filter === 'unvisited' && !p.visited)
+  const filteredPlaces = places
+    .filter(p => {
+      const matchesFilter =
+        filter === 'all' ||
+        (filter === 'visited' && !!p.visited) ||
+        (filter === 'unvisited' && !p.visited) ||
+        (filter === 'prioritized' && getPriorityRank(p) !== null)
 
-    const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase()) || p.city.toLowerCase().includes(search.toLowerCase())
+      const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase()) || p.city.toLowerCase().includes(search.toLowerCase())
 
-    return matchesFilter && matchesSearch
-  })
+      return matchesFilter && matchesSearch
+    })
+    .sort((a, b) => {
+      if (filter !== 'prioritized') return 0
+      return (getPriorityRank(a) ?? 0) - (getPriorityRank(b) ?? 0)
+    })
 
   // Group helpers
   const handleToggleSelectAll = (checked: boolean) => {
@@ -501,13 +516,13 @@ export function WheelOfPlaces() {
         </div>
 
         {/* Quick Filters */}
-        <div className="flex gap-2">
+        <div className="grid grid-cols-2 gap-2">
           <Button
             variant="outline"
             size="sm"
             onClick={() => setFilter('unvisited')}
             className={cn(
-              'flex-1 text-[11px] h-8 rounded-lg transition-all',
+              'text-[11px] h-8 rounded-lg transition-all',
               filter === 'unvisited'
                 ? 'bg-zinc-900 dark:bg-zinc-800 text-zinc-100 border-zinc-800 dark:border-zinc-700'
                 : 'text-muted-foreground hover:text-foreground border-border'
@@ -520,7 +535,7 @@ export function WheelOfPlaces() {
             size="sm"
             onClick={() => setFilter('visited')}
             className={cn(
-              'flex-1 text-[11px] h-8 rounded-lg transition-all',
+              'text-[11px] h-8 rounded-lg transition-all',
               filter === 'visited'
                 ? 'bg-zinc-900 dark:bg-zinc-800 text-zinc-100 border-zinc-800 dark:border-zinc-700'
                 : 'text-muted-foreground hover:text-foreground border-border'
@@ -531,9 +546,22 @@ export function WheelOfPlaces() {
           <Button
             variant="outline"
             size="sm"
+            onClick={() => setFilter('prioritized')}
+            className={cn(
+              'text-[11px] h-8 rounded-lg transition-all',
+              filter === 'prioritized'
+                ? 'bg-zinc-900 dark:bg-zinc-800 text-zinc-100 border-zinc-800 dark:border-zinc-700'
+                : 'text-muted-foreground hover:text-foreground border-border'
+            )}
+          >
+            Prioritized
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
             onClick={() => setFilter('all')}
             className={cn(
-              'flex-1 text-[11px] h-8 rounded-lg transition-all',
+              'text-[11px] h-8 rounded-lg transition-all',
               filter === 'all'
                 ? 'bg-zinc-900 dark:bg-zinc-800 text-zinc-100 border-zinc-800 dark:border-zinc-700'
                 : 'text-muted-foreground hover:text-foreground border-border'
@@ -635,14 +663,24 @@ export function WheelOfPlaces() {
                       </div>
                     </div>
 
-                    {place.visited && (
-                      <Badge
-                        variant="outline"
-                        className="border-green-500/20 text-green-500/70 text-[9px] bg-green-500/5 py-0 px-1.5 shrink-0 ml-2"
-                      >
-                        Visited
-                      </Badge>
-                    )}
+                    <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                      {getPriorityRank(place) !== null && (
+                        <Badge
+                          variant="outline"
+                          className="border-amber-500/20 text-amber-600 dark:text-amber-400/80 text-[9px] bg-amber-500/5 py-0 px-1.5"
+                        >
+                          #{getPriorityRank(place)} Priority
+                        </Badge>
+                      )}
+                      {place.visited && (
+                        <Badge
+                          variant="outline"
+                          className="border-green-500/20 text-green-500/70 text-[9px] bg-green-500/5 py-0 px-1.5"
+                        >
+                          Visited
+                        </Badge>
+                      )}
+                    </div>
                   </div>
                 )
               })}

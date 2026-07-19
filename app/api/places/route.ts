@@ -14,7 +14,8 @@ export async function GET(req: Request) {
     const rows = await getRows(SPREADSHEET_ID, TAB_NAME)
     const compacted = rows.map((r, i) => ({
       ...compactPlace(r),
-      index: i + 2
+      index: i + 2,
+      priority: r.Priority || null
     }))
     return NextResponse.json(compacted)
   } catch (error: any) {
