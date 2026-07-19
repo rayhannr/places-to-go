@@ -95,10 +95,10 @@ export const TOOL_METADATA: Record<string, ToolMetadata> = {
     mutating: true,
     category: 'actions'
   },
-  categorize_place: {
-    label: 'Categorize',
-    blurb: 'Tags or retags a place with one or more categories, like cuisine or food type.',
-    statusText: 'Slapping on a category…',
+  update_place: {
+    label: 'Update Place',
+    blurb: 'Edits a place\'s name, city, link, or category (one or more categories, comma-separated).',
+    statusText: 'Updating the place…',
     mutating: true,
     category: 'actions'
   },

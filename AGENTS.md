@@ -20,8 +20,11 @@
     - **`get_places_by_city`**: Filter places by a specific city name.
     - **`get_places_by_category`**: Filter places by one or more categories (e.g. cuisine or type of food); a place's `Category` cell may itself hold several comma-separated categories, and a comma-separated query matches any of them.
     - **`search_places_by_name`**: Fuzzy search across the personal tracker by place name.
-- **Categorization (`categorize_place`)**:
-    - Sets or updates a place's `Category` by name, using fuzzy matching to find the correct place. Accepts a comma-separated list to assign multiple categories at once (replaces the whole cell).
+- **Editing (`update_place`)**:
+    - Updates a place's `Name`, `City`, `Link`, and/or `Category`, using fuzzy matching to find the correct place by its current name.
+    - Only the fields provided are changed; the rest are left untouched.
+    - `Category` accepts a comma-separated list to assign multiple categories at once (replaces the whole cell).
+    - `Link` is stored as given — not re-resolved, re-parsed, or used to recalculate distance/travel time. Use `sync_all_distances` separately if those need refreshing after a link change.
 - **Global Discovery (`search_google_maps`)**: 
     - Search for new places directly on Google Maps (outside the personal tracker).
     - Returns top 3 results with name, city, and direct Maps link.

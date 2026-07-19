@@ -9,7 +9,7 @@ import {
   demoUpdateVisitDate,
   demoDeleteRow,
   demoUpdatePriorities,
-  demoUpdateCategory
+  demoUpdatePlaceFields
 } from './demo-store'
 import { getRedis } from './redis'
 export type { PlaceRow } from './types'
@@ -324,25 +324,33 @@ export async function updatePriorities(
 }
 
 /**
- * Update the "Category" column (Column J) for a specific row.
+ * Update one or more of the editable metadata fields (Name, City, Link, Category —
+ * columns A, B, C, J) for a specific row. Only the provided fields are written.
  */
-export async function updateCategory(
+export async function updatePlaceFields(
   spreadsheetId: string,
   tabName: string,
   rowIndex: number,
-  category: string
+  fields: { name?: string; city?: string; link?: string; category?: string }
 ): Promise<void> {
-  if (DEMO_MODE) return demoUpdateCategory(spreadsheetId, tabName, rowIndex, category)
+  if (DEMO_MODE) return demoUpdatePlaceFields(spreadsheetId, tabName, rowIndex, fields)
+
+  const columnByField: Record<keyof typeof fields, string> = { name: 'A', city: 'B', link: 'C', category: 'J' }
+  const data = (Object.keys(fields) as (keyof typeof fields)[])
+    .filter(field => fields[field] !== undefined)
+    .map(field => ({
+      range: `${tabName}!${columnByField[field]}${rowIndex}`,
+      values: [[fields[field]]]
+    }))
+
+  if (data.length === 0) return
 
   const sheets = await getSheetsClient()
-  const range = `${tabName}!J${rowIndex}`
-
-  await sheets.spreadsheets.values.update({
+  await sheets.spreadsheets.values.batchUpdate({
     spreadsheetId,
-    range,
-    valueInputOption: 'USER_ENTERED',
     requestBody: {
-      values: [[category]]
+      valueInputOption: 'USER_ENTERED',
+      data
     }
   } as any)
 

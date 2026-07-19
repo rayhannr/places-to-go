@@ -89,12 +89,12 @@ function ToolPartView({ part }: { part: ToolPart }) {
         }
         return renderSuccess(`"${name}" locked in at priority ${output?.priority}`)
       }
-      case 'categorize_place': {
+      case 'update_place': {
         const name = output?.placeName ?? 'place'
         if (!output?.success) {
-          return renderError(output?.message || `Couldn't categorize "${name}"`)
+          return renderError(output?.message || `Couldn't update "${name}"`)
         }
-        return renderSuccess(<>"{name}" tagged as "{output?.category}"</>)
+        return renderSuccess(<>"{name}" updated</>)
       }
       case 'parse_place_link': {
         if (!output?.success) {

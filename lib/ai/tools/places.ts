@@ -1,6 +1,6 @@
 import { tool } from 'ai'
 import { z } from 'zod'
-import { getRows, appendRow, updateVisitDate, deleteRow, updatePriorities, updateCategory } from '../../googleSheets'
+import { getRows, appendRow, updateVisitDate, deleteRow, updatePriorities, updatePlaceFields } from '../../googleSheets'
 import {
   compactPlace,
   syncLiveDistancesIfNeeded,
@@ -545,18 +545,38 @@ export const prioritize_place = tool({
   }
 })
 
-export const categorize_place = tool({
+export const update_place = tool({
   description:
-    'Set or update the category (e.g. cuisine or type of food) of an existing place in the tracker. Supports multiple categories as a comma-separated list, which replaces the place\'s entire category value.',
+    'Update one or more fields (name, city, Google Maps link, category) of an existing place in the tracker. Only pass the fields that should change; anything omitted is left untouched. Does NOT recalculate distance/travel time even if the link changes — use sync_all_distances for that separately.',
   inputSchema: z.object({
-    name: z.string().describe('The name of the place to categorize'),
+    name: z.string().describe('The current name of the place to update (used to find it via fuzzy matching)'),
+    newName: z.string().optional().describe('New name for the place (Optional)'),
+    city: z.string().optional().describe('New city for the place (Optional)'),
+    link: z.string().optional().describe('New Google Maps link for the place. Stored as-is, not re-resolved or re-parsed (Optional)'),
     category: z
       .string()
+      .optional()
       .describe(
-        'The category to assign to the place, formatted lowercase with no space after the comma (an individual category name may itself contain spaces). Pass a comma-separated list to assign multiple categories, e.g. "japanese,spicy food"'
+        'New category for the place, formatted lowercase with no space after the comma (an individual category name may itself contain spaces). Pass a comma-separated list for multiple categories, e.g. "japanese,spicy food" (Optional). Replaces the place\'s entire category value.'
       )
   }),
-  execute: async ({ name, category }: { name: string; category: string }) => {
+  execute: async ({
+    name,
+    newName,
+    city,
+    link,
+    category
+  }: {
+    name: string
+    newName?: string
+    city?: string
+    link?: string
+    category?: string
+  }) => {
+    if (!newName && !city && !link && !category) {
+      return { success: false, message: 'Bro you gotta give me SOMETHING to change. Name, city, link, category — pick one.' }
+    }
+
     const allRows = await getRows(SPREADSHEET_ID, TAB_NAME)
 
     const bestMatch = findPlaceByName(allRows, name)
@@ -564,14 +584,21 @@ export const categorize_place = tool({
       return { success: false, message: placeNotFoundMessage(name) }
     }
 
-    await updateCategory(SPREADSHEET_ID, TAB_NAME, bestMatch.index, category)
+    await updatePlaceFields(SPREADSHEET_ID, TAB_NAME, bestMatch.index, { name: newName, city, link, category })
 
-    const finalName = bestMatch.row.Name
+    const finalName = newName || bestMatch.row.Name
+    const changedFields = [
+      newName && 'name',
+      city && 'city',
+      link && 'link',
+      category && 'category'
+    ].filter(Boolean) as string[]
+
     return {
       success: true,
       placeName: finalName,
-      category,
-      message: `"${finalName}" tagged as "${category}". Easy.`
+      updated: { name: newName, city, link, category },
+      message: `"${finalName}" updated (${changedFields.join(', ')}). Locked in.`
     }
   }
 })

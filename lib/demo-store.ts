@@ -125,17 +125,22 @@ export async function demoUpdatePriorities(
   await writeData(data)
 }
 
-export async function demoUpdateCategory(
+export async function demoUpdatePlaceFields(
   _spreadsheetId: string,
   _tabName: string,
   rowIndex: number, // 1-based sheet row; data starts at row 2, so array index = rowIndex - 2
-  category: string
+  fields: { name?: string; city?: string; link?: string; category?: string }
 ): Promise<void> {
   const data = await readData()
   const arrayIndex = rowIndex - 2
-  if (data.places[arrayIndex]) {
-    data.places[arrayIndex].Category = category || null
-  }
+  const place = data.places[arrayIndex]
+  if (!place) return
+
+  if (fields.name !== undefined) place.Name = fields.name
+  if (fields.city !== undefined) place.City = fields.city
+  if (fields.link !== undefined) place.Link = fields.link
+  if (fields.category !== undefined) place.Category = fields.category || null
+
   await writeData(data)
 }
 
