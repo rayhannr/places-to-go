@@ -166,6 +166,12 @@ graph TD
     - `bot.ts`: Grammy bot instance and message handling logic.
     - `googleSheets.ts`: Google Sheets API wrapper (rows cached in Redis).
     - `redis.ts`: Shared Upstash Redis client used by rate limiting and the row cache.
+- `cli/`:
+    - `index.ts`: `ptg` CLI entry point, run via `./ptg.sh <command>` (wrapper script at repo root).
+    - `commands.ts`: Registers one Commander subcommand per AI tool in `lib/ai/tools.ts`, calling `execute()` directly.
+    - `schema.ts`: Converts a tool's Zod `inputSchema` into Commander options and back into tool args, so adding a tool doesn't require touching the CLI.
+    - `chat.ts`: `ptg chat` — terminal REPL using the same `AI_CONFIG`, tools, and Mistral model as the web/Telegram front ends.
+    - `format.ts`: Pretty-prints tool results (table for arrays of flat objects, JSON otherwise).
 - `scripts/`:
     - `set-webhook.ts`: Helper script to configure Telegram webhook.
 - `vercel.json`: Vercel Cron schedule (monthly closure check).

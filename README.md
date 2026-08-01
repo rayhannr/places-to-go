@@ -121,6 +121,24 @@ Add this to your `claude_desktop_config.json`:
 }
 ```
 
+### 7. CLI
+A local command-line interface, `ptg.sh`, is included for scripting and quick lookups without opening the browser or Telegram.
+
+```bash
+# Direct commands — one per AI tool, args validated the same way
+./ptg.sh get-random-places --count 3
+./ptg.sh add-place --link "https://maps.app.goo.gl/xxxx" --category "japanese,ramen"
+./ptg.sh get-priority-places
+
+# Interactive AI chat mode — same persona/tools as web & Telegram, needs MISTRAL_API_KEY
+./ptg.sh chat
+
+# Full option list per command
+./ptg.sh add-place --help
+```
+
+Reads `.env` the same way `npm run telegram:set-webhook` does, so the same environment variables apply. Mutating commands (`add-place`, `update-place`, `delete-place`, `visit-place`, `prioritize-place`, `sync-all-distances`) go through the same per-tool rate limiter as the web/Telegram front ends, since they share the same Google API quota.
+
 ## 📖 Related Documents
 - [AGENTS.md](./AGENTS.md): Detailed technical specification and architecture.
 - [CLAUDE.md](./CLAUDE.md): Development guidelines and command reference.
