@@ -121,6 +121,14 @@ function ToolPartView({ part }: { part: ToolPart }) {
         return renderPlaceListResult(output, 'Dug up')
       case 'get_priority_places':
         return renderPlaceListResult(output, 'Dug up')
+      case 'get_visited_places': {
+        const count = output?.places?.length ?? 0
+        const page = output?.page ?? 1
+        const totalPages = output?.totalPages ?? 1
+        return renderSuccess(
+          <>Dug up {count} place{count !== 1 ? 's' : ''} (page {page}/{totalPages})</>
+        )
+      }
       case 'search_google_maps': {
         const count = output?.length ?? 0
         return renderSuccess(<>Dug up {count} result{count !== 1 ? 's' : ''} on Google Maps</>)

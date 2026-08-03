@@ -222,6 +222,35 @@ export const get_categories = tool({
   }
 })
 
+export const get_visited_places = tool({
+  description: 'Get places already visited, paginated and sorted by most recently visited first.',
+  inputSchema: z.object({
+    page: z.number().optional().default(1).describe('Page number, starting at 1'),
+    count: z.number().optional().default(10).describe('Number of places per page (1-10)')
+  }),
+  execute: async ({ page = 1, count = 10 }: { page?: number; count?: number }) => {
+    const allRows = await getRows(SPREADSHEET_ID, TAB_NAME)
+    const visited = filterByStatus(allRows, 'visited').sort((a, b) => {
+      const dateA = new Date(a['Date Visited'] || 0).getTime()
+      const dateB = new Date(b['Date Visited'] || 0).getTime()
+      return dateB - dateA
+    })
+
+    const pageSize = Math.min(Math.max(1, count), 10)
+    const totalPages = Math.max(1, Math.ceil(visited.length / pageSize))
+    const safePage = Math.min(Math.max(1, page), totalPages)
+    const start = (safePage - 1) * pageSize
+
+    return {
+      places: visited.slice(start, start + pageSize).map(r => compactPlace(r)),
+      page: safePage,
+      pageSize,
+      totalPages,
+      totalCount: visited.length
+    }
+  }
+})
+
 export const search_places_by_name = tool({
   description: 'Search for a place by its name using fuzzy matching.',
   inputSchema: z.object({

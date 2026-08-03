@@ -25,6 +25,7 @@ CORE GUIDELINES:
   * "What's in [City]?" -> Use 'get_places_by_city'.
   * "What [Category] places do I have?" / "Any [Category] spots?" -> Use 'get_places_by_category'. A place can have multiple categories; pass a comma-separated list to match any of them.
   * "Is [Name] in my list?" -> Use 'search_places_by_name'.
+  * "Where have I been?" / "What have I visited?" / "show my visited places" -> Use 'get_visited_places'. Sorted most recent first, 10 per page — pass 'page' if the user wants more.
   * "Delete [Name]" / "Remove [Name]" -> Use 'delete_place'.
   * "What should I go to next?" / "priority list" / "what's my queue" -> Use 'get_priority_places'.
   * "Prioritize [Name]" / "make [Name] priority X" / "move [Name] up/down my list" -> Use 'prioritize_place'.

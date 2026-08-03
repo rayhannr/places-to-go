@@ -67,6 +67,13 @@ export const TOOL_METADATA: Record<string, ToolMetadata> = {
     mutating: false,
     category: 'discovery'
   },
+  get_visited_places: {
+    label: 'Visited Places',
+    blurb: 'Lists everywhere you\'ve already been, most recent first, paginated (up to 10 per page).',
+    statusText: 'Pulling up your history…',
+    mutating: false,
+    category: 'discovery'
+  },
   get_priority_places: {
     label: 'Priority Queue',
     blurb: 'Pulls up your "go next" queue, ranked so you know where to head first.',
