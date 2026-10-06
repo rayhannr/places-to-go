@@ -151,6 +151,33 @@ export function filterByStatus(rows: PlaceRow[], status: 'visited' | 'unvisited'
   return rows.filter(r => (status === 'visited' ? !!r['Date Visited'] : !r['Date Visited']))
 }
 
+export interface PaginatedResult<T> {
+  items: T[]
+  page: number
+  pageSize: number
+  totalPages: number
+  totalCount: number
+}
+
+/**
+ * Slice an already-ordered list into a page, clamping page/pageSize to valid ranges.
+ * Shared by list tools so the AI can page through results beyond the per-call cap instead of only ever seeing the first N.
+ */
+export function paginate<T>(items: T[], page = 1, pageSize = 10, maxPageSize = 10): PaginatedResult<T> {
+  const safePageSize = Math.min(Math.max(1, pageSize), maxPageSize)
+  const totalPages = Math.max(1, Math.ceil(items.length / safePageSize))
+  const safePage = Math.min(Math.max(1, page), totalPages)
+  const start = (safePage - 1) * safePageSize
+
+  return {
+    items: items.slice(start, start + safePageSize),
+    page: safePage,
+    pageSize: safePageSize,
+    totalPages,
+    totalCount: items.length
+  }
+}
+
 interface PriorityEntry {
   index: number // 1-based sheet row
   name: string

@@ -10,6 +10,7 @@ import {
   placeNotFoundMessage,
   getPrioritizedEntries,
   buildPriorityUpdates,
+  paginate,
   SPREADSHEET_ID,
   TAB_NAME
 } from './logic'
@@ -64,18 +65,21 @@ export const get_random_places = tool({
 })
 
 export const get_nearby_places = tool({
-  description: 'Get the closest places based on distance.',
+  description: 'Get the closest places based on distance, paginated. Use page to fetch beyond the first page.',
   inputSchema: z.object({
-    count: z.number().optional().default(1).describe('Number of places to return (1-10)'),
+    count: z.number().optional().default(1).describe('Number of places per page (1-10)'),
+    page: z.number().optional().default(1).describe('Page number, starting at 1'),
     status: z.enum(['visited', 'unvisited']).optional().default('unvisited'),
     userLocation: z.object({ lat: z.number(), lng: z.number() }).optional().describe('User current location for live distance')
   }),
   execute: async ({
     count = 1,
+    page = 1,
     status = 'unvisited',
     userLocation
   }: {
     count?: number
+    page?: number
     status?: 'visited' | 'unvisited'
     userLocation?: Coords
   }) => {
@@ -89,23 +93,27 @@ export const get_nearby_places = tool({
       const distB = parseFloat((userLocation ? b['Distance (from current location)'] : b['Distance (km)']) || (Infinity as any))
       return distA - distB
     })
-    return sorted.slice(0, Math.min(count, 10)).map(r => compactPlace(r, !!userLocation))
+    const { items, ...meta } = paginate(sorted, page, count, 10)
+    return { places: items.map(r => compactPlace(r, !!userLocation)), ...meta }
   }
 })
 
 export const get_quickest_places = tool({
-  description: 'Get places with the shortest travel time.',
+  description: 'Get places with the shortest travel time, paginated. Use page to fetch beyond the first page.',
   inputSchema: z.object({
-    count: z.number().optional().default(1).describe('Number of places to return (1-10)'),
+    count: z.number().optional().default(1).describe('Number of places per page (1-10)'),
+    page: z.number().optional().default(1).describe('Page number, starting at 1'),
     status: z.enum(['visited', 'unvisited']).optional().default('unvisited'),
     userLocation: z.object({ lat: z.number(), lng: z.number() }).optional().describe('User current location for live distance')
   }),
   execute: async ({
     count = 1,
+    page = 1,
     status = 'unvisited',
     userLocation
   }: {
     count?: number
+    page?: number
     status?: 'visited' | 'unvisited'
     userLocation?: Coords
   }) => {
@@ -119,26 +127,30 @@ export const get_quickest_places = tool({
       const timeB = parseFloat((userLocation ? b['Travel Time (from current location)'] : b['Travel Time (min)']) || (Infinity as any))
       return timeA - timeB
     })
-    return sorted.slice(0, Math.min(count, 10)).map(r => compactPlace(r, !!userLocation))
+    const { items, ...meta } = paginate(sorted, page, count, 10)
+    return { places: items.map(r => compactPlace(r, !!userLocation)), ...meta }
   }
 })
 
 export const get_places_by_city = tool({
-  description: 'Get places filtered by a specific city.',
+  description: 'Get places filtered by a specific city, paginated. Use page to fetch beyond the first page (e.g. to list every place in a city).',
   inputSchema: z.object({
     city: z.string().describe('The name of the city to filter by'),
-    count: z.number().optional().default(1).describe('Number of places to return (1-10)'),
+    count: z.number().optional().default(1).describe('Number of places per page (1-10)'),
+    page: z.number().optional().default(1).describe('Page number, starting at 1'),
     status: z.enum(['visited', 'unvisited']).optional().default('unvisited'),
     userLocation: z.object({ lat: z.number(), lng: z.number() }).optional().describe('User current location for live distance')
   }),
   execute: async ({
     city,
     count = 1,
+    page = 1,
     status = 'unvisited',
     userLocation
   }: {
     city: string
     count?: number
+    page?: number
     status?: 'visited' | 'unvisited'
     userLocation?: Coords
   }) => {
@@ -150,28 +162,32 @@ export const get_places_by_city = tool({
       const rowCity = (r.City || '').toLowerCase()
       return rowCity.includes(city.toLowerCase())
     })
-    const shuffled = [...filtered].sort(() => 0.5 - Math.random())
-    return shuffled.slice(0, Math.min(count, 10)).map(r => compactPlace(r, !!userLocation))
+    const sorted = [...filtered].sort((a, b) => (a.Name || '').localeCompare(b.Name || ''))
+    const { items, ...meta } = paginate(sorted, page, count, 10)
+    return { places: items.map(r => compactPlace(r, !!userLocation)), ...meta }
   }
 })
 
 export const get_places_by_category = tool({
   description:
-    'Get places filtered by a specific category (e.g. cuisine or type of food). A place can have multiple categories (comma-separated); pass a single category or a comma-separated list to match any of them.',
+    'Get places filtered by a specific category (e.g. cuisine or type of food), paginated. A place can have multiple categories (comma-separated); pass a single category or a comma-separated list to match any of them. Use page to fetch beyond the first page (e.g. to list every place in a category).',
   inputSchema: z.object({
     category: z.string().describe('The category to filter by. Pass a comma-separated list to match places having any of them'),
-    count: z.number().optional().default(1).describe('Number of places to return (1-10)'),
+    count: z.number().optional().default(1).describe('Number of places per page (1-10)'),
+    page: z.number().optional().default(1).describe('Page number, starting at 1'),
     status: z.enum(['visited', 'unvisited']).optional().default('unvisited'),
     userLocation: z.object({ lat: z.number(), lng: z.number() }).optional().describe('User current location for live distance')
   }),
   execute: async ({
     category,
     count = 1,
+    page = 1,
     status = 'unvisited',
     userLocation
   }: {
     category: string
     count?: number
+    page?: number
     status?: 'visited' | 'unvisited'
     userLocation?: Coords
   }) => {
@@ -190,8 +206,9 @@ export const get_places_by_category = tool({
         .filter(Boolean)
       return queryCategories.some(q => rowCategories.some(rc => rc.includes(q)))
     })
-    const shuffled = [...filtered].sort(() => 0.5 - Math.random())
-    return shuffled.slice(0, Math.min(count, 10)).map(r => compactPlace(r, !!userLocation))
+    const sorted = [...filtered].sort((a, b) => (a.Name || '').localeCompare(b.Name || ''))
+    const { items, ...meta } = paginate(sorted, page, count, 10)
+    return { places: items.map(r => compactPlace(r, !!userLocation)), ...meta }
   }
 })
 
@@ -236,37 +253,30 @@ export const get_visited_places = tool({
       return dateB - dateA
     })
 
-    const pageSize = Math.min(Math.max(1, count), 10)
-    const totalPages = Math.max(1, Math.ceil(visited.length / pageSize))
-    const safePage = Math.min(Math.max(1, page), totalPages)
-    const start = (safePage - 1) * pageSize
-
-    return {
-      places: visited.slice(start, start + pageSize).map(r => compactPlace(r)),
-      page: safePage,
-      pageSize,
-      totalPages,
-      totalCount: visited.length
-    }
+    const { items, ...meta } = paginate(visited, page, count, 10)
+    return { places: items.map(r => compactPlace(r)), ...meta }
   }
 })
 
 export const search_places_by_name = tool({
-  description: 'Search for a place by its name using fuzzy matching.',
+  description: 'Search for a place by its name using fuzzy matching, paginated. Use page to fetch beyond the first page.',
   inputSchema: z.object({
     query: z.string().describe('The name of the place to search for'),
-    count: z.number().optional().default(1).describe('Number of results to return (1-10)'),
+    count: z.number().optional().default(1).describe('Number of results per page (1-10)'),
+    page: z.number().optional().default(1).describe('Page number, starting at 1'),
     status: z.enum(['visited', 'unvisited', 'any']).optional().default('any'),
     userLocation: z.object({ lat: z.number(), lng: z.number() }).optional().describe('User current location for live distance')
   }),
   execute: async ({
     query,
     count = 1,
+    page = 1,
     status = 'any',
     userLocation
   }: {
     query: string
     count?: number
+    page?: number
     status?: 'visited' | 'unvisited' | 'any'
     userLocation?: Coords
   }) => {
@@ -278,7 +288,8 @@ export const search_places_by_name = tool({
 
     const results = fuzzySearchPlaces(filtered, query)
 
-    return results.slice(0, Math.min(count, 10)).map(res => compactPlace(res.row, !!userLocation))
+    const { items, ...meta } = paginate(results, page, count, 10)
+    return { places: items.map(res => compactPlace(res.row, !!userLocation)), ...meta }
   }
 })
 
@@ -510,18 +521,23 @@ export const delete_place = tool({
 
 export const get_priority_places = tool({
   description:
-    'Get places from the "want to go next" priority list, sorted by rank ascending (priority 1 = go there first). Only returns places that actually have a priority set.',
+    'Get places from the "want to go next" priority list, sorted by rank ascending (priority 1 = go there first), paginated. Only returns places that actually have a priority set. Use page to fetch beyond the first page.',
   inputSchema: z.object({
-    count: z.number().optional().default(10).describe('Number of places to return (1-20)')
+    count: z.number().optional().default(10).describe('Number of places per page (1-20)'),
+    page: z.number().optional().default(1).describe('Page number, starting at 1')
   }),
-  execute: async ({ count = 10 }: { count?: number }) => {
+  execute: async ({ count = 10, page = 1 }: { count?: number; page?: number }) => {
     const allRows = await getRows(SPREADSHEET_ID, TAB_NAME)
     const entries = getPrioritizedEntries(allRows)
 
-    return entries.slice(0, Math.min(count, 20)).map(p => ({
-      ...compactPlace(allRows[p.index - 2]),
-      priority: p.priority
-    }))
+    const { items, ...meta } = paginate(entries, page, count, 20)
+    return {
+      places: items.map(p => ({
+        ...compactPlace(allRows[p.index - 2]),
+        priority: p.priority
+      })),
+      ...meta
+    }
   }
 })
 
@@ -661,28 +677,34 @@ export const update_place = tool({
 
 export const search_google_maps = tool({
   description:
-    'Search for places directly on Google Maps (not in the personal list). Use this when the user wants to discover new places or search globally.',
+    'Search for places directly on Google Maps (not in the personal list), paginated. Use this when the user wants to discover new places or search globally. Use page to fetch beyond the first page.',
   inputSchema: z.object({
-    query: z.string().describe('The search query (e.g., "Soto Bu Slamet Jogja")')
+    query: z.string().describe('The search query (e.g., "Soto Bu Slamet Jogja")'),
+    count: z.number().optional().default(3).describe('Number of results per page (1-20)'),
+    page: z.number().optional().default(1).describe('Page number, starting at 1')
   }),
-  execute: async ({ query }: { query: string }) => {
+  execute: async ({ query, count = 3, page = 1 }: { query: string; count?: number; page?: number }) => {
     const results = await searchGmapsPlaces(query)
 
-    return results.slice(0, 3).map(res => {
-      const addressParts = res.formatted_address?.split(', ') || []
-      let city = 'Unknown City'
-      if (addressParts.length >= 3) {
-        // Heuristic for Indonesian addresses: City is usually 3rd from the end
-        city = addressParts[addressParts.length - 3]
-      } else if (addressParts.length === 2) {
-        city = addressParts[0]
-      }
+    const { items, ...meta } = paginate(results, page, count, 20)
+    return {
+      places: items.map(res => {
+        const addressParts = res.formatted_address?.split(', ') || []
+        let city = 'Unknown City'
+        if (addressParts.length >= 3) {
+          // Heuristic for Indonesian addresses: City is usually 3rd from the end
+          city = addressParts[addressParts.length - 3]
+        } else if (addressParts.length === 2) {
+          city = addressParts[0]
+        }
 
-      return {
-        name: res.name,
-        city: cleanCityName(city),
-        link: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(res.name || '')}&query_place_id=${res.place_id}`
-      }
-    })
+        return {
+          name: res.name,
+          city: cleanCityName(city),
+          link: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(res.name || '')}&query_place_id=${res.place_id}`
+        }
+      }),
+      ...meta
+    }
   }
 })

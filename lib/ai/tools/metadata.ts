@@ -27,28 +27,28 @@ export const TOOL_METADATA: Record<string, ToolMetadata> = {
   },
   get_nearby_places: {
     label: 'Nearby Places',
-    blurb: 'Digs up whatever\'s closest to your base or wherever you\'re standing.',
+    blurb: 'Digs up whatever\'s closest to your base or wherever you\'re standing, paginated (up to 10 per page).',
     statusText: 'Scoping what\'s close…',
     mutating: false,
     category: 'discovery'
   },
   get_quickest_places: {
     label: 'Quickest Places',
-    blurb: 'Finds the spots you can reach fastest so you stop wasting travel time.',
+    blurb: 'Finds the spots you can reach fastest so you stop wasting travel time, paginated (up to 10 per page).',
     statusText: 'Checking travel times…',
     mutating: false,
     category: 'discovery'
   },
   get_places_by_city: {
     label: 'By City',
-    blurb: 'Filters your list down to one city so you stop scrolling like an idiot.',
+    blurb: 'Filters your list down to one city so you stop scrolling like an idiot, paginated (up to 10 per page).',
     statusText: 'Digging through the city…',
     mutating: false,
     category: 'discovery'
   },
   get_places_by_category: {
     label: 'By Category',
-    blurb: 'Filters your list down to one or more categories, like cuisine or food type.',
+    blurb: 'Filters your list down to one or more categories, like cuisine or food type, paginated (up to 10 per page).',
     statusText: 'Digging through categories…',
     mutating: false,
     category: 'discovery'
@@ -62,7 +62,7 @@ export const TOOL_METADATA: Record<string, ToolMetadata> = {
   },
   search_places_by_name: {
     label: 'Search By Name',
-    blurb: 'Hunts your list for a place by name, typos and all.',
+    blurb: 'Hunts your list for a place by name, typos and all, paginated (up to 10 per page).',
     statusText: 'Searching your list…',
     mutating: false,
     category: 'discovery'
@@ -76,7 +76,7 @@ export const TOOL_METADATA: Record<string, ToolMetadata> = {
   },
   get_priority_places: {
     label: 'Priority Queue',
-    blurb: 'Pulls up your "go next" queue, ranked so you know where to head first.',
+    blurb: 'Pulls up your "go next" queue, ranked so you know where to head first, paginated (up to 20 per page).',
     statusText: 'Checking the queue…',
     mutating: false,
     category: 'discovery'
@@ -139,7 +139,7 @@ export const TOOL_METADATA: Record<string, ToolMetadata> = {
   },
   search_google_maps: {
     label: 'Google Maps Search',
-    blurb: 'Goes outside your list and searches Google Maps directly.',
+    blurb: 'Goes outside your list and searches Google Maps directly, paginated (up to 20 per page).',
     statusText: 'Hitting up Google Maps…',
     mutating: false,
     category: 'search'
