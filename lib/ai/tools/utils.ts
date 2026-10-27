@@ -1,5 +1,5 @@
 import https from 'https'
-import { Client, AddressType } from '@googlemaps/google-maps-services-js'
+import { Client } from '@googlemaps/google-maps-services-js'
 import { PlacesClient } from '@googlemaps/places'
 import axios from 'axios'
 
@@ -204,7 +204,18 @@ export async function resolveCoordsFromLocationInput(input: string): Promise<Coo
 }
 
 export function cleanCityName(name: string): string {
-  return name.replace(/^(Kabupaten|Kota)\s+/i, '').replace(/\s+City$/i, '')
+  return name.trim().replace(/^(Kabupaten|Kota)\s+/i, '').replace(/\s+City$/i, '').trim()
+}
+
+/**
+ * City-level component of a Google address. Prefers administrative_area_level_2 (Kabupaten/Kota);
+ * `locality` can resolve to a kecamatan, so it's only the fallback.
+ */
+export function pickCityComponent<T extends { types?: string[] | null }>(components: T[]): T | undefined {
+  return (
+    components.find(c => c.types?.includes('administrative_area_level_2')) ??
+    components.find(c => c.types?.includes('locality'))
+  )
 }
 
 export async function cityFromCoords(coords: Coords): Promise<string | null> {
@@ -215,9 +226,7 @@ export async function cityFromCoords(coords: Coords): Promise<string | null> {
     })
     const result = resp.data.results?.[0]
     if (result && result.address_components) {
-      const isCity = (c: { types: string[] }) =>
-        c.types.includes(AddressType.locality) || c.types.includes(AddressType.administrative_area_level_2)
-      const cityComp = result.address_components.find(isCity)
+      const cityComp = pickCityComponent(result.address_components)
       if (cityComp) {
         return cleanCityName(cityComp.long_name)
       }
@@ -345,7 +354,7 @@ export async function getPlaceDetails(placeId: string): Promise<{ name?: string;
 
     let city: string | undefined
     if (place.addressComponents) {
-      const cityComp = place.addressComponents.find(c => c.types?.includes('locality') || c.types?.includes('administrative_area_level_2'))
+      const cityComp = pickCityComponent(place.addressComponents)
       if (cityComp?.longText) city = cleanCityName(cityComp.longText)
     }
 

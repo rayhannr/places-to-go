@@ -345,7 +345,8 @@ export const add_place = tool({
       if (details) {
         if (!finalName && details.name) finalName = details.name
         if (!c && details.coords) c = details.coords
-        if (!finalCity && details.city) finalCity = details.city
+        // Google wins on city — a caller-supplied one is just a guess typed into chat.
+        if (details.city) finalCity = details.city
       }
     }
 
@@ -656,7 +657,10 @@ export const update_place = tool({
       return { success: false, message: placeNotFoundMessage(name) }
     }
 
-    await updatePlaceFields(SPREADSHEET_ID, TAB_NAME, bestMatch.index, { name: newName, city, link, category })
+    // Normalize here too — this path bypasses add_place.
+    const finalCity = city ? cleanCityName(city) : undefined
+
+    await updatePlaceFields(SPREADSHEET_ID, TAB_NAME, bestMatch.index, { name: newName, city: finalCity, link, category })
 
     const finalName = newName || bestMatch.row.Name
     const changedFields = [
@@ -669,7 +673,7 @@ export const update_place = tool({
     return {
       success: true,
       placeName: finalName,
-      updated: { name: newName, city, link, category },
+      updated: { name: newName, city: finalCity, link, category },
       message: `"${finalName}" updated (${changedFields.join(', ')}). Locked in.`
     }
   }
