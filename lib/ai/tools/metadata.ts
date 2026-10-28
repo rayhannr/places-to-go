@@ -1,6 +1,6 @@
-export type ToolCategory = 'discovery' | 'actions' | 'location' | 'search'
+type ToolCategory = 'discovery' | 'actions' | 'location' | 'search'
 
-export interface ToolMetadata {
+interface ToolMetadata {
   label: string
   blurb: string
   statusText: string

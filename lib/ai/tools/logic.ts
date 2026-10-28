@@ -1,6 +1,14 @@
 import levenshtein from 'fast-levenshtein'
 import { PlaceRow, updateLiveDistances, updateSheetLinks } from '../../googleSheets'
-import { Coords, extractCoords, getDistancesBatch, haversineDistance, parseDurationSecs, resolveShortLink, coordsFromPlaceName } from './utils'
+import {
+  Coords,
+  extractCoords,
+  getDistancesBatch,
+  haversineDistance,
+  parseDurationSecs,
+  resolveShortLink,
+  coordsFromPlaceName
+} from './utils'
 
 export const SPREADSHEET_ID = process.env.SPREADSHEET_ID!
 export const TAB_NAME = 'Food'
@@ -20,25 +28,122 @@ export function compactPlace(r: PlaceRow, useLive = false) {
   }
 }
 
+interface RouteCandidate {
+  coords: Coords
+  hav: number
+}
+
+interface RoutedLeg {
+  distKm: number | null
+  travelMin: number | null
+}
+
+/**
+ * Max places we ask Google about when topN is set, i.e. when we only want the nearest few.
+ *
+ * Why cap at all: the stop rule below weighs one place's road distance against the next place's
+ * straight-line distance, and roads always run longer than straight lines. Say the list holds 200
+ * places around town X and you open the app from town Y, 100km away. Every place is then ~100km in
+ * a straight line but ~130km by road, so the rule keeps asking "is 130km under 100km?" — never
+ * true, and we'd ask about all 200.
+ *
+ * Why 40: topN can't exceed 10, so this is 4x the most we ever need to rank. In practice the true
+ * nearest 10 sit well inside the nearest 40 by straight line, so this leaves a wide margin.
+ */
+const MAX_ROUTED = 40
+
+/**
+ * Ask Google for road distances, nearest places first, and stop once the top N is settled.
+ *
+ * A road is never shorter than a straight line. So if the Nth closest we've found is 3.1km by road,
+ * a place that's 3.2km away in a straight line can't beat it — and neither can anything behind it,
+ * since they're farther still. That's when we stop and skip the rest.
+ *
+ * Returns candidate index -> distance/time, only for the ones we actually asked about.
+ */
+async function routeUntilTopNProven(
+  origin: Coords,
+  candidates: RouteCandidate[],
+  topN: number,
+  maxRouted = MAX_ROUTED
+): Promise<Map<number, RoutedLeg>> {
+  const routed = new Map<number, RoutedLeg>()
+  let done = 0
+  // Ask for more than topN in the first batch. Roads run ~1.4x longer than straight lines, so the
+  // Nth closest in a straight line is usually not the Nth closest by road.
+  // The +5 covers small topN (topN of 1 would otherwise ask for 2), the *2 covers large topN.
+  const firstBatch = Math.max(topN * 2, topN + 5)
+  let target = Math.min(candidates.length, firstBatch)
+
+  while (done < target) {
+    const batch = candidates.slice(done, target)
+    const results = await getDistancesBatch(
+      origin,
+      batch.map(c => c.coords)
+    )
+
+    results.forEach(res => {
+      const isSuccess = !res.status || res.status.code === 0 || Object.keys(res.status).length === 0
+      if (res.destinationIndex === undefined || !isSuccess) return
+      const secs = parseDurationSecs(res.duration)
+      routed.set(done + res.destinationIndex, {
+        distKm: res.distanceMeters ? +(res.distanceMeters / 1000).toFixed(2) : null,
+        travelMin: secs ? +(secs / 60).toFixed(1) : null
+      })
+    })
+
+    done = target
+    if (done >= candidates.length) break
+
+    const nthBest = [...routed.values()]
+      .map(l => l.distKm)
+      .filter((d): d is number => d !== null)
+      .sort((a, b) => a - b)[topN - 1]
+
+    if (nthBest !== undefined && nthBest <= candidates[done].hav) {
+      console.log(
+        `[Sync] Top ${topN} proven after ${done} of ${candidates.length} routed (next is >= ${candidates[done].hav.toFixed(2)}km straight-line)`
+      )
+      break
+    }
+
+    if (done >= maxRouted) {
+      console.log(`[Sync] Hit the ${maxRouted} cap before proving top ${topN} — everything is roughly equidistant from here.`)
+      break
+    }
+
+    target = Math.min(candidates.length, maxRouted, done + Math.max(10, topN))
+  }
+
+  return routed
+}
+
 export async function syncLiveDistancesIfNeeded(
   rows: PlaceRow[],
   userLocation: Coords | undefined,
-  forceUpdate = false
+  forceUpdate = false,
+  topN?: number
 ): Promise<PlaceRow[]> {
   if (!userLocation) return rows
   if (rows.length === 0) return rows
 
   // Only sync unvisited places — visited ones are unlikely to be revisited and
   // keeping them out cuts Routes API elements proportionally to visits accumulated.
-  const unvisited = rows
-    .map((r, i) => ({ row: r, originalIndex: i }))
-    .filter(({ row }) => !row['Date Visited'])
+  const unvisited = rows.map((r, i) => ({ row: r, originalIndex: i })).filter(({ row }) => !row['Date Visited'])
 
   if (unvisited.length === 0) return rows
 
-  const firstUnvisited = unvisited[0].row
-  const storedDist = firstUnvisited['Distance (from current location)']
-  const firstCoords = extractCoords(firstUnvisited.Link)
+  // To check "has the user moved?", compare against a row that actually has an old distance saved.
+  // When topN is set we only fill a few rows, so always taking the first row would often find a blank
+  // and re-sync everything, every single call.
+  const anchor =
+    unvisited.find(({ row }) => {
+      const d = row['Distance (from current location)']
+      return d !== null && d !== undefined && d !== '' && !!extractCoords(row.Link)
+    })?.row ?? unvisited[0].row
+
+  const storedDist = anchor['Distance (from current location)']
+  const firstCoords = extractCoords(anchor.Link)
 
   const needsInitialization = storedDist === null || storedDist === undefined || storedDist === ''
 
@@ -60,7 +165,9 @@ export async function syncLiveDistancesIfNeeded(
   }
 
   if (shouldUpdate) {
-    console.log(`[Sync] Recalculating distances for ${unvisited.length} unvisited rows (${rows.length - unvisited.length} visited skipped)...`)
+    console.log(
+      `[Sync] Recalculating distances for ${unvisited.length} unvisited rows (${rows.length - unvisited.length} visited skipped)...`
+    )
 
     // Resolve short links and find coordinates (with geocode fallback)
     const resolvedRows = await Promise.all(
@@ -84,52 +191,60 @@ export async function syncLiveDistancesIfNeeded(
       })
     )
 
-    const rowsWithCoords = resolvedRows.filter(r => !!r.coords)
-    const destinationCoords = rowsWithCoords.map(r => r.coords as Coords)
+    // Sort nearest first by straight line, so we can stop early once the top N is settled.
+    const rowsWithCoords = resolvedRows
+      .filter((r): r is typeof r & { coords: Coords } => !!r.coords)
+      .map(r => ({ ...r, hav: haversineDistance(userLocation.lat, userLocation.lng, r.coords.lat, r.coords.lng) }))
+      .sort((a, b) => a.hav - b.hav)
 
-    if (destinationCoords.length === 0) {
+    if (rowsWithCoords.length === 0) {
       console.warn('[Sync] No destinations with valid coordinates found.')
       return rows
     }
 
-    const results = await getDistancesBatch(userLocation, destinationCoords)
-    console.log(`[Sync] API returned ${results.length} distance results.`)
-    
-    const updateValues: (string | number | null)[][] = rows.map(() => [null, null])
+    // No topN means calculate everything — that's what the lens tools still do.
+    const routed = topN
+      ? await routeUntilTopNProven(userLocation, rowsWithCoords, topN)
+      : await routeUntilTopNProven(userLocation, rowsWithCoords, rowsWithCoords.length, rowsWithCoords.length)
+    console.log(`[Sync] Routed ${routed.size} of ${rowsWithCoords.length} candidates.`)
+
+    // Write '' and not null. Sheets reads null as "don't touch this cell", so every row we skip
+    // would keep its old distance from wherever we synced last time.
+    const updateValues: (string | number | null)[][] = rows.map(() => ['', ''])
     const linkUpdateValues: (string | null)[][] = rows.map(r => [r.Link || null])
     let linksChanged = false
 
-    results.forEach(res => {
-      const isSuccess = !res.status || res.status.code === 0 || Object.keys(res.status).length === 0
-      if (res.destinationIndex !== undefined && isSuccess) {
-        const distKm = res.distanceMeters ? +(res.distanceMeters / 1000).toFixed(2) : null
-        const secs = parseDurationSecs(res.duration)
-        const travelMin = secs ? +(secs / 60).toFixed(1) : null
+    // We just blanked these cells in the sheet, so blank our in-memory copies too.
+    // Otherwise whoever called us sorts on numbers the sheet no longer has.
+    rows.forEach(r => {
+      r['Distance (from current location)'] = null
+      r['Travel Time (from current location)'] = null
+    })
 
-        const matchedRow = rowsWithCoords[res.destinationIndex]
-        const rowIndex = matchedRow.originalIndex
-        
-        if (rowIndex !== undefined && rowIndex !== -1) {
-          updateValues[rowIndex] = [distKm, travelMin]
-          rows[rowIndex]['Distance (from current location)'] = distKm
-          rows[rowIndex]['Travel Time (from current location)'] = travelMin
-          
-          // Check if link was repaired (resolved or tagged)
-          const originalLink = rows[rowIndex].Link
-          const repairedLink = matchedRow.resolvedLink
-          
-          // Inject tag if we geocoded but URL is still coord-less
-          let finalLink = repairedLink
-          if (matchedRow.coords && !extractCoords(repairedLink)) {
-            const separator = repairedLink.includes('?') ? '&' : '?'
-            finalLink = `${repairedLink}${separator}ll=${matchedRow.coords.lat},${matchedRow.coords.lng}`
-          }
+    routed.forEach((leg, candidateIndex) => {
+      const matchedRow = rowsWithCoords[candidateIndex]
+      const rowIndex = matchedRow.originalIndex
 
-          if (finalLink !== originalLink) {
-            linkUpdateValues[rowIndex] = [finalLink]
-            rows[rowIndex].Link = finalLink // Update local object
-            linksChanged = true
-          }
+      if (rowIndex !== undefined && rowIndex !== -1) {
+        updateValues[rowIndex] = [leg.distKm, leg.travelMin]
+        rows[rowIndex]['Distance (from current location)'] = leg.distKm
+        rows[rowIndex]['Travel Time (from current location)'] = leg.travelMin
+
+        // Check if link was repaired (resolved or tagged)
+        const originalLink = rows[rowIndex].Link
+        const repairedLink = matchedRow.resolvedLink
+
+        // Inject tag if we geocoded but URL is still coord-less
+        let finalLink = repairedLink
+        if (matchedRow.coords && !extractCoords(repairedLink)) {
+          const separator = repairedLink.includes('?') ? '&' : '?'
+          finalLink = `${repairedLink}${separator}ll=${matchedRow.coords.lat},${matchedRow.coords.lng}`
+        }
+
+        if (finalLink !== originalLink) {
+          linkUpdateValues[rowIndex] = [finalLink]
+          rows[rowIndex].Link = finalLink // Update local object
+          linksChanged = true
         }
       }
     })
@@ -151,7 +266,7 @@ export function filterByStatus(rows: PlaceRow[], status: 'visited' | 'unvisited'
   return rows.filter(r => (status === 'visited' ? !!r['Date Visited'] : !r['Date Visited']))
 }
 
-export interface PaginatedResult<T> {
+interface PaginatedResult<T> {
   items: T[]
   page: number
   pageSize: number
@@ -227,12 +342,12 @@ export function placeNotFoundMessage(name: string): string {
  */
 export function fuzzySearchPlaces(rows: PlaceRow[], query: string) {
   const queryLower = query.toLowerCase()
-  
+
   return rows
     .map((r, index) => {
       const name = (r.Name || '').toLowerCase()
       let score = levenshtein.get(name, queryLower)
-      
+
       if (name === queryLower) {
         score = 0
       } else if (name.includes(queryLower) || queryLower.includes(name)) {
@@ -240,7 +355,7 @@ export function fuzzySearchPlaces(rows: PlaceRow[], query: string) {
       } else {
         score = score + 2
       }
-      
+
       return { row: r, index: index + 2, score }
     })
     .sort((a, b) => a.score - b.score)

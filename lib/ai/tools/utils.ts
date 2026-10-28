@@ -7,7 +7,7 @@ export const GMAPS_API_KEY = process.env.GMAPS_API_KEY!
 export const gmapsClient = new Client({})
 // New Places API (v1) client. `fallback: 'rest'` uses plain JSON-over-HTTPS instead of
 // gRPC, and `apiKey` auths the same way the legacy client and raw REST calls always did.
-export const placesClient = new PlacesClient({ apiKey: GMAPS_API_KEY, fallback: 'rest' })
+const placesClient = new PlacesClient({ apiKey: GMAPS_API_KEY, fallback: 'rest' })
 
 export interface Coords {
   lat: number
@@ -211,7 +211,7 @@ export function cleanCityName(name: string): string {
  * City-level component of a Google address. Prefers administrative_area_level_2 (Kabupaten/Kota);
  * `locality` can resolve to a kecamatan, so it's only the fallback.
  */
-export function pickCityComponent<T extends { types?: string[] | null }>(components: T[]): T | undefined {
+function pickCityComponent<T extends { types?: string[] | null }>(components: T[]): T | undefined {
   return (
     components.find(c => c.types?.includes('administrative_area_level_2')) ??
     components.find(c => c.types?.includes('locality'))
@@ -325,7 +325,7 @@ export function extractPlaceId(url: string | null): string | null {
   }
 }
 
-export type PlaceBusinessStatus = 'OPERATIONAL' | 'CLOSED_TEMPORARILY' | 'CLOSED_PERMANENTLY'
+type PlaceBusinessStatus = 'OPERATIONAL' | 'CLOSED_TEMPORARILY' | 'CLOSED_PERMANENTLY'
 
 /**
  * Lightweight Place Details call requesting only businessStatus, for closure checks.

@@ -128,18 +128,22 @@ export const sync_all_distances = tool({
       }
     }
 
-    await syncLiveDistancesIfNeeded(rows, locationToUse, !!locationLink)
+    // We only show the nearest few, so only calculate those. Everything else is farther anyway.
+    const shown = Math.min(count, 10)
+    await syncLiveDistancesIfNeeded(rows, locationToUse, !!locationLink, shown)
 
     if (saveSession && userId) {
       await saveChatSession(userId, { lat: locationToUse.lat, lng: locationToUse.lng })
     }
 
+    const routedCount = rows.filter(r => r['Distance (from current location)'] !== null).length
+
     return {
       success: true,
       updated: true,
-      count: rows.length,
+      count: routedCount,
       nearby: getNearby(),
-      message: `Done. Updated ${rows.length} places from ${sourceLabel}. Happy now?`
+      message: `Done. Checked the ${routedCount} closest to ${sourceLabel} — the rest are too far to compete. Happy now?`
     }
   }
 })
