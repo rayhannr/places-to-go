@@ -13,9 +13,15 @@ import {
 export const SPREADSHEET_ID = process.env.SPREADSHEET_ID!
 export const TAB_NAME = 'Food'
 
+function orNull(v: string | number | null | undefined): string | number | null {
+  return v === null || v === undefined || v === '' ? null : v
+}
+
 export function compactPlace(r: PlaceRow, useLive = false) {
-  const dist = useLive ? r['Distance (from current location)'] || r['Distance (km)'] : r['Distance (km)']
-  const time = useLive ? r['Travel Time (from current location)'] || r['Travel Time (min)'] : r['Travel Time (min)']
+  // Don't fall back to the home-base columns when live is requested but blank (e.g. a place
+  // outside the synced topN) — that would silently mislabel the home-base distance as live.
+  const dist = useLive ? orNull(r['Distance (from current location)']) : r['Distance (km)']
+  const time = useLive ? orNull(r['Travel Time (from current location)']) : r['Travel Time (min)']
 
   return {
     name: r.Name,
@@ -121,7 +127,6 @@ async function routeUntilTopNProven(
 export async function syncLiveDistancesIfNeeded(
   rows: PlaceRow[],
   userLocation: Coords | undefined,
-  forceUpdate = false,
   topN?: number
 ): Promise<PlaceRow[]> {
   if (!userLocation) return rows
@@ -133,131 +138,98 @@ export async function syncLiveDistancesIfNeeded(
 
   if (unvisited.length === 0) return rows
 
-  // To check "has the user moved?", compare against a row that actually has an old distance saved.
-  // When topN is set we only fill a few rows, so always taking the first row would often find a blank
-  // and re-sync everything, every single call.
-  const anchor =
-    unvisited.find(({ row }) => {
-      const d = row['Distance (from current location)']
-      return d !== null && d !== undefined && d !== '' && !!extractCoords(row.Link)
-    })?.row ?? unvisited[0].row
+  console.log(
+    `[Sync] Recalculating distances for ${unvisited.length} unvisited rows (${rows.length - unvisited.length} visited skipped)...`
+  )
 
-  const storedDist = anchor['Distance (from current location)']
-  const firstCoords = extractCoords(anchor.Link)
+  // Resolve short links and find coordinates (with geocode fallback)
+  const resolvedRows = await Promise.all(
+    unvisited.map(async ({ row: r, originalIndex }) => {
+      const link = r.Link || ''
+      const name = r.Name || ''
+      const city = r.City || ''
 
-  const needsInitialization = storedDist === null || storedDist === undefined || storedDist === ''
+      const needsResolve = link.includes('maps.app.goo.gl') || link.includes('goo.gl/maps')
+      const fullUrl = needsResolve ? await resolveShortLink(link) : link
 
-  let shouldUpdate = needsInitialization || forceUpdate
+      let coords = extractCoords(fullUrl)
 
-  if (!shouldUpdate && !needsInitialization && firstCoords) {
-    const currentRealDist = haversineDistance(userLocation.lat, userLocation.lng, firstCoords.lat, firstCoords.lng)
-    const diff = Math.abs(currentRealDist - parseFloat(storedDist.toString()))
-    console.log(`[Sync] Distance check: current=${currentRealDist.toFixed(3)}km, stored=${storedDist}km, diff=${diff.toFixed(3)}km`)
-
-    if (diff > 2) {
-      shouldUpdate = true
-    } else {
-      console.log('[Sync] Skipping update: movement < 2km')
-    }
-  } else if (!needsInitialization && !firstCoords) {
-    console.log('[Sync] No coordinates found in link, forcing update...')
-    shouldUpdate = true
-  }
-
-  if (shouldUpdate) {
-    console.log(
-      `[Sync] Recalculating distances for ${unvisited.length} unvisited rows (${rows.length - unvisited.length} visited skipped)...`
-    )
-
-    // Resolve short links and find coordinates (with geocode fallback)
-    const resolvedRows = await Promise.all(
-      unvisited.map(async ({ row: r, originalIndex }) => {
-        const link = r.Link || ''
-        const name = r.Name || ''
-        const city = r.City || ''
-
-        const needsResolve = link.includes('maps.app.goo.gl') || link.includes('goo.gl/maps')
-        const fullUrl = needsResolve ? await resolveShortLink(link) : link
-
-        let coords = extractCoords(fullUrl)
-
-        // Last Resort: Geocode by Name + City if link is still coord-less
-        if (!coords && name) {
-          console.log(`[Sync] Last resort: Geocoding "${name}, ${city}"`)
-          coords = await coordsFromPlaceName(`${name}, ${city}`)
-        }
-
-        return { ...r, resolvedLink: fullUrl, coords, originalIndex }
-      })
-    )
-
-    // Sort nearest first by straight line, so we can stop early once the top N is settled.
-    const rowsWithCoords = resolvedRows
-      .filter((r): r is typeof r & { coords: Coords } => !!r.coords)
-      .map(r => ({ ...r, hav: haversineDistance(userLocation.lat, userLocation.lng, r.coords.lat, r.coords.lng) }))
-      .sort((a, b) => a.hav - b.hav)
-
-    if (rowsWithCoords.length === 0) {
-      console.warn('[Sync] No destinations with valid coordinates found.')
-      return rows
-    }
-
-    // No topN means calculate everything — that's what the lens tools still do.
-    const routed = topN
-      ? await routeUntilTopNProven(userLocation, rowsWithCoords, topN)
-      : await routeUntilTopNProven(userLocation, rowsWithCoords, rowsWithCoords.length, rowsWithCoords.length)
-    console.log(`[Sync] Routed ${routed.size} of ${rowsWithCoords.length} candidates.`)
-
-    // Write '' and not null. Sheets reads null as "don't touch this cell", so every row we skip
-    // would keep its old distance from wherever we synced last time.
-    const updateValues: (string | number | null)[][] = rows.map(() => ['', ''])
-    const linkUpdateValues: (string | null)[][] = rows.map(r => [r.Link || null])
-    let linksChanged = false
-
-    // We just blanked these cells in the sheet, so blank our in-memory copies too.
-    // Otherwise whoever called us sorts on numbers the sheet no longer has.
-    rows.forEach(r => {
-      r['Distance (from current location)'] = null
-      r['Travel Time (from current location)'] = null
-    })
-
-    routed.forEach((leg, candidateIndex) => {
-      const matchedRow = rowsWithCoords[candidateIndex]
-      const rowIndex = matchedRow.originalIndex
-
-      if (rowIndex !== undefined && rowIndex !== -1) {
-        updateValues[rowIndex] = [leg.distKm, leg.travelMin]
-        rows[rowIndex]['Distance (from current location)'] = leg.distKm
-        rows[rowIndex]['Travel Time (from current location)'] = leg.travelMin
-
-        // Check if link was repaired (resolved or tagged)
-        const originalLink = rows[rowIndex].Link
-        const repairedLink = matchedRow.resolvedLink
-
-        // Inject tag if we geocoded but URL is still coord-less
-        let finalLink = repairedLink
-        if (matchedRow.coords && !extractCoords(repairedLink)) {
-          const separator = repairedLink.includes('?') ? '&' : '?'
-          finalLink = `${repairedLink}${separator}ll=${matchedRow.coords.lat},${matchedRow.coords.lng}`
-        }
-
-        if (finalLink !== originalLink) {
-          linkUpdateValues[rowIndex] = [finalLink]
-          rows[rowIndex].Link = finalLink // Update local object
-          linksChanged = true
-        }
+      // Last Resort: Geocode by Name + City if link is still coord-less
+      if (!coords && name) {
+        console.log(`[Sync] Last resort: Geocoding "${name}, ${city}"`)
+        coords = await coordsFromPlaceName(`${name}, ${city}`)
       }
+
+      return { ...r, resolvedLink: fullUrl, coords, originalIndex }
     })
+  )
 
-    if (linksChanged) {
-      console.log('[Sync] Repairing links in Google Sheets...')
-      await updateSheetLinks(SPREADSHEET_ID, TAB_NAME, linkUpdateValues)
-    }
+  // Sort nearest first by straight line, so we can stop early once the top N is settled.
+  const rowsWithCoords = resolvedRows
+    .filter((r): r is typeof r & { coords: Coords } => !!r.coords)
+    .map(r => ({ ...r, hav: haversineDistance(userLocation.lat, userLocation.lng, r.coords.lat, r.coords.lng) }))
+    .sort((a, b) => a.hav - b.hav)
 
-    console.log('[Sync] Sending distance updates to Google Sheets...')
-    await updateLiveDistances(SPREADSHEET_ID, TAB_NAME, updateValues)
-    console.log('[Sync] Sheet update completed.')
+  if (rowsWithCoords.length === 0) {
+    console.warn('[Sync] No destinations with valid coordinates found.')
+    return rows
   }
+
+  // No topN means calculate everything — that's what the lens tools still do.
+  const routed = topN
+    ? await routeUntilTopNProven(userLocation, rowsWithCoords, topN)
+    : await routeUntilTopNProven(userLocation, rowsWithCoords, rowsWithCoords.length, rowsWithCoords.length)
+  console.log(`[Sync] Routed ${routed.size} of ${rowsWithCoords.length} candidates.`)
+
+  // Write '' and not null. Sheets reads null as "don't touch this cell", so every row we skip
+  // would keep its old distance from wherever we synced last time.
+  const updateValues: (string | number | null)[][] = rows.map(() => ['', ''])
+  const linkUpdateValues: (string | null)[][] = rows.map(r => [r.Link || null])
+  let linksChanged = false
+
+  // We just blanked these cells in the sheet, so blank our in-memory copies too.
+  // Otherwise whoever called us sorts on numbers the sheet no longer has.
+  rows.forEach(r => {
+    r['Distance (from current location)'] = null
+    r['Travel Time (from current location)'] = null
+  })
+
+  routed.forEach((leg, candidateIndex) => {
+    const matchedRow = rowsWithCoords[candidateIndex]
+    const rowIndex = matchedRow.originalIndex
+
+    if (rowIndex !== undefined && rowIndex !== -1) {
+      updateValues[rowIndex] = [leg.distKm, leg.travelMin]
+      rows[rowIndex]['Distance (from current location)'] = leg.distKm
+      rows[rowIndex]['Travel Time (from current location)'] = leg.travelMin
+
+      // Check if link was repaired (resolved or tagged)
+      const originalLink = rows[rowIndex].Link
+      const repairedLink = matchedRow.resolvedLink
+
+      // Inject tag if we geocoded but URL is still coord-less
+      let finalLink = repairedLink
+      if (matchedRow.coords && !extractCoords(repairedLink)) {
+        const separator = repairedLink.includes('?') ? '&' : '?'
+        finalLink = `${repairedLink}${separator}ll=${matchedRow.coords.lat},${matchedRow.coords.lng}`
+      }
+
+      if (finalLink !== originalLink) {
+        linkUpdateValues[rowIndex] = [finalLink]
+        rows[rowIndex].Link = finalLink // Update local object
+        linksChanged = true
+      }
+    }
+  })
+
+  if (linksChanged) {
+    console.log('[Sync] Repairing links in Google Sheets...')
+    await updateSheetLinks(SPREADSHEET_ID, TAB_NAME, linkUpdateValues)
+  }
+
+  console.log('[Sync] Sending distance updates to Google Sheets...')
+  await updateLiveDistances(SPREADSHEET_ID, TAB_NAME, updateValues)
+  console.log('[Sync] Sheet update completed.')
 
   return rows
 }

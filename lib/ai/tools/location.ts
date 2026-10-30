@@ -130,7 +130,7 @@ export const sync_all_distances = tool({
 
     // We only show the nearest few, so only calculate those. Everything else is farther anyway.
     const shown = Math.min(count, 10)
-    await syncLiveDistancesIfNeeded(rows, locationToUse, !!locationLink, shown)
+    await syncLiveDistancesIfNeeded(rows, locationToUse, shown)
 
     if (saveSession && userId) {
       await saveChatSession(userId, { lat: locationToUse.lat, lng: locationToUse.lng })
