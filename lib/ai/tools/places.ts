@@ -56,7 +56,7 @@ export const get_random_places = tool({
   }) => {
     let allRows = await getRows(SPREADSHEET_ID, TAB_NAME)
     if (userLocation) {
-      allRows = await syncLiveDistancesIfNeeded(allRows, userLocation)
+      allRows = await syncLiveDistancesIfNeeded(allRows, userLocation, Math.min(count, 20))
     }
     const filtered = filterByStatus(allRows, status)
     const shuffled = [...filtered].sort(() => 0.5 - Math.random())
@@ -85,7 +85,7 @@ export const get_nearby_places = tool({
   }) => {
     let allRows = await getRows(SPREADSHEET_ID, TAB_NAME)
     if (userLocation) {
-      allRows = await syncLiveDistancesIfNeeded(allRows, userLocation)
+      allRows = await syncLiveDistancesIfNeeded(allRows, userLocation, Math.min(count, 20))
     }
     const filtered = filterByStatus(allRows, status)
     const sorted = [...filtered].sort((a, b) => {
@@ -119,7 +119,7 @@ export const get_quickest_places = tool({
   }) => {
     let allRows = await getRows(SPREADSHEET_ID, TAB_NAME)
     if (userLocation) {
-      allRows = await syncLiveDistancesIfNeeded(allRows, userLocation)
+      allRows = await syncLiveDistancesIfNeeded(allRows, userLocation, Math.min(count, 20))
     }
     const filtered = filterByStatus(allRows, status)
     const sorted = [...filtered].sort((a, b) => {
@@ -156,7 +156,7 @@ export const get_places_by_city = tool({
   }) => {
     let allRows = await getRows(SPREADSHEET_ID, TAB_NAME)
     if (userLocation) {
-      allRows = await syncLiveDistancesIfNeeded(allRows, userLocation)
+      allRows = await syncLiveDistancesIfNeeded(allRows, userLocation, Math.min(count, 20))
     }
     const filtered = filterByStatus(allRows, status).filter(r => {
       const rowCity = (r.City || '').toLowerCase()
@@ -193,7 +193,7 @@ export const get_places_by_category = tool({
   }) => {
     let allRows = await getRows(SPREADSHEET_ID, TAB_NAME)
     if (userLocation) {
-      allRows = await syncLiveDistancesIfNeeded(allRows, userLocation)
+      allRows = await syncLiveDistancesIfNeeded(allRows, userLocation, Math.min(count, 20))
     }
     const queryCategories = category
       .split(',')
@@ -282,7 +282,7 @@ export const search_places_by_name = tool({
   }) => {
     let allRows = await getRows(SPREADSHEET_ID, TAB_NAME)
     if (userLocation) {
-      allRows = await syncLiveDistancesIfNeeded(allRows, userLocation)
+      allRows = await syncLiveDistancesIfNeeded(allRows, userLocation, Math.min(count, 20))
     }
     const filtered = status === 'any' ? allRows : filterByStatus(allRows, status as any)
 
